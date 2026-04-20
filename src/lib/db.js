@@ -130,6 +130,7 @@ async function createTables(database) {
       conta_id INTEGER,
       usuario_id INTEGER,
       recorrencia_id INTEGER,
+      tipo_custo TEXT, -- Fixo, Variável
       ai_categoria_sugerida TEXT,
       ai_confianca REAL,
       created_at TEXT,
@@ -193,7 +194,7 @@ async function createTables(database) {
     // Coluna já existe ou erro ignorável
   }
   try {
-    await database.exec("DROP TABLE IF EXISTS contexto");
+    await database.exec("ALTER TABLE transacao ADD COLUMN tipo_custo TEXT");
   } catch (e) {
     // Erro ignorável
   }

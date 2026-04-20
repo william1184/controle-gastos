@@ -21,6 +21,10 @@ export default function NovaGasto() {
   const [categorias, setCategorias] = useState([]);
   const [contas, setContas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  
+  // Recorrência
+  const [isRecorrente, setIsRecorrente] = useState(false);
+  const [frequencia, setFrequencia] = useState('mensal');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [image, setImage] = useState(null);
@@ -82,7 +86,8 @@ export default function NovaGasto() {
       tipoCusto, 
       contaId, 
       usuarioId, 
-      produtos: mode === 'full' ? produtos : [] 
+      produtos: mode === 'full' ? produtos : [],
+      recorrencia: isRecorrente ? { frequencia } : null
     });
     router.push('/gastos');
   };
@@ -191,6 +196,34 @@ export default function NovaGasto() {
                   onChange={(e) => setTotal(parseFloat(e.target.value) || 0)}
                   className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-2xl font-bold transition-all"
                 />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 p-6 bg-gray-50 rounded-2xl border border-gray-200">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={isRecorrente}
+                onChange={(e) => setIsRecorrente(e.target.checked)}
+                className="w-6 h-6 accent-blue-600 cursor-pointer"
+              />
+              <span className="text-sm font-bold text-gray-700 group-hover:text-blue-600 transition-colors">Esta é uma despesa recorrente</span>
+            </label>
+            
+            {isRecorrente && (
+              <div className="mt-4 animate-fadeIn">
+                <label className="block text-xs font-black text-gray-400 uppercase mb-2">Frequência do Gasto</label>
+                <select
+                  value={frequencia}
+                  onChange={(e) => setFrequencia(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all text-sm font-bold"
+                >
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
+                  <option value="anual">Anual</option>
+                </select>
+                <p className="text-[11px] text-gray-400 mt-3 italic font-medium">O sistema agendará automaticamente o próximo lançamento com base nesta frequência.</p>
               </div>
             )}
           </div>

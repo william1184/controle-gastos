@@ -1,5 +1,6 @@
 "use client";
 import { addGasto, clearGastos, deleteGasto, getGastos, updateGasto } from '@/lib/gastosDb';
+import { getContas } from '@/lib/contaDb';
 import GenerativeLanguageApi from '@/lib/generative_ai_api';
 import { getConfiguracoes } from '@/lib/storeDb';
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
@@ -12,24 +13,52 @@ export default function Home() {
   const [image, setImage] = useState(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState([]);
-  const [categoriasGastos, setCategoriasGastos] = useState([]); // This would also likely come from DB
+  const [categoriasGastos, setCategoriasGastos] = useState([]);
+  const [contas, setContas] = useState([]);
+  const [filters, setFilters] = useState({
+    categoria: '',
+    accountId: '',
+    startDate: '',
+    endDate: '',
+    tipoCusto: ''
+  });
+  
   const { runTask, isTaskRunning } = useBackgroundTask();
   const loadingAi = isTaskRunning('ai-categorias-gastos');
 
-  useEffect(() => {
-    const loadData = async () => {
-      const loadedGastos = await getGastos();
-      setGastos(loadedGastos);
+  const loadData = async () => {
+    const loadedGastos = await getGastos(filters);
+    setGastos(loadedGastos);
 
-      const config = await getConfiguracoes();
-      let catGastos = config.categoriasGastos || [];
-      if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
-        catGastos = catGastos.map(c => c.nome);
-      }
-      setCategoriasGastos(catGastos);
-    };
+    const config = await getConfiguracoes();
+    let catGastos = config.categoriasGastos || [];
+    if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
+      catGastos = catGastos.map(c => c.nome);
+    }
+    setCategoriasGastos(catGastos);
+
+    const loadedContas = await getContas();
+    setContas(loadedContas);
+  };
+
+  useEffect(() => {
     loadData();
-  }, []);
+  }, [filters]);
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      categoria: '',
+      accountId: '',
+      startDate: '',
+      endDate: '',
+      tipoCusto: ''
+    });
+  };
 
   const handleDelete = async (index) => {
     const gastoToDelete = gastos[index];
@@ -66,7 +95,6 @@ export default function Home() {
           : config.categoriasGastos.map(c => c.nome);
       }
 
-      // Lê o arquivo no navegador como Base64
       const base64String = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result.split(',')[1]);
@@ -74,7 +102,7 @@ export default function Home() {
         reader.readAsDataURL(image);
       });
 
-      setIsModalOpen(false); // Fecha o modal imediatamente
+      setIsModalOpen(false);
 
       runTask(
         `upload-image-${Date.now()}`,
@@ -88,8 +116,7 @@ export default function Home() {
         (data) => {
           const saveAiToDb = async (gasto) => {
             await addGasto({ ...gasto, tipoCusto: 'Variável' });
-            const loadedGastos = await getGastos();
-            setGastos(loadedGastos);
+            loadData();
           };
           saveAiToDb(data);
         },
@@ -101,47 +128,6 @@ export default function Home() {
       console.error('[Gastos] Erro ao processar a imagem e comunicar com a IA:', error);
       alert('Erro ao processar imagem: ' + error.message);
     }
-  };
-
-  const handleExportCSV = () => {
-    if (gastos.length === 0) {
-      return alert('Nenhum dado para exportar.');
-    }
-
-    let csvContent = "ID Gasto,Data,Apelido,Categoria,Total Gasto,Nome do Produto,Codigo do Produto,Quantidade,Unidade,Preco Unitario,Preco Total\n";
-
-    gastos.forEach((gasto, index) => {
-      if (!gasto.produtos || gasto.produtos.length === 0) {
-        const row = [index, gasto.data, gasto.apelido || '', gasto.categoria || '', gasto.total, '', '', '', '', '', ''];
-        csvContent += row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',') + "\n";
-      } else {
-        gasto.produtos.forEach(produto => {
-          const row = [
-            index,
-            gasto.data,
-            gasto.apelido || '',
-            gasto.categoria || '',
-            gasto.total,
-            produto.nome || '',
-            produto.codigo || '',
-            produto.quantidade || 0,
-            produto.unidade || '',
-            produto.preco_unitario || 0,
-            produto.preco_total || 0
-          ];
-          csvContent += row.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',') + "\n";
-        });
-      }
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'gastos_base.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const handleSuggestCategories = async () => {
@@ -192,245 +178,231 @@ export default function Home() {
   };
 
   const handleApplyAiSuggestions = async () => {
-    const updatedGastos = [...gastos];
     for (const sug of aiSuggestions) {
-      if (sug.accepted && updatedGastos[sug.index]) {
-        updatedGastos[sug.index].categoria = sug.categoria_sugerida;
-        await updateGasto(updatedGastos[sug.index].id, updatedGastos[sug.index]);
+      if (sug.accepted && gastos[sug.index]) {
+        const updatedGasto = { ...gastos[sug.index], categoria: sug.categoria_sugerida };
+        await updateGasto(updatedGasto.id, updatedGasto);
       }
     }
-    setGastos(updatedGastos);
+    loadData();
     setIsAiModalOpen(false);
     setAiSuggestions([]);
   };
 
-  const handleImportCSV = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!window.confirm('A importação irá substituir a base de gastos atual. Deseja continuar?')) {
-      event.target.value = ''; // Reseta o input para permitir nova seleção do mesmo arquivo
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const text = e.target.result;
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-        if (lines.length <= 1) return alert('O arquivo CSV parece estar vazio ou não possui dados válidos.');
-
-        const importedGastos = [];
-        let currentGastoId = null;
-        let currentGasto = null;
-
-        // Função auxiliar para interpretar a linha CSV corretamente ignorando vírgulas entre aspas
-        const parseLine = (line) => {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"' && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              result.push(current);
-              current = '';
-            } else {
-              current += char;
-            }
-          }
-          result.push(current);
-          return result;
-        };
-
-        for (let i = 1; i < lines.length; i++) {
-          const cols = parseLine(lines[i]);
-          if (cols.length < 10) continue;
-
-          let idStr, data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr;
-          if (cols.length === 10) {
-            [idStr, data, apelido, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr] = cols;
-            categoria = '';
-          } else {
-            [idStr, data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr] = cols;
-          }
-
-          const id = parseInt(idStr, 10);
-
-          if (id !== currentGastoId) {
-            currentGastoId = id;
-            currentGasto = {
-              data: data,
-              apelido: apelido,
-              categoria: categoria,
-              total: parseFloat(totalStr) || 0,
-              produtos: []
-            };
-            importedGastos.push(currentGasto);
-          }
-
-          if (pNome || pCodigo) {
-            currentGasto.produtos.push({
-              nome: pNome,
-              codigo: pCodigo,
-              quantidade: parseFloat(pQtdStr) || 0,
-              unidade: pUnidade,
-              preco_unitario: parseFloat(pPrecoUniStr) || 0,
-              preco_total: parseFloat(pPrecoTotStr) || 0
-            });
-          }
-        }
-
-        await clearGastos();
-        for (const g of importedGastos) {
-          await addGasto(g);
-        }
-        const finalGastos = await getGastos();
-        setGastos(finalGastos);
-
-        alert('Base importada com sucesso!');
-        event.target.value = ''; // Limpa o input
-      } catch (error) {
-        console.error('[Gastos] Falha não tratada ao importar CSV:', error);
-        alert('Ocorreu um erro ao processar o arquivo CSV. Verifique o formato.');
-      }
-    };
-    reader.readAsText(file);
-  };
-
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-blue-600">Lista de Gastos</h1>
-      <div className="flex flex-wrap gap-4 mb-4">
-        <Link
-          href="/gastos/nova"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
-        >
-          Adicionar Gasto
-        </Link>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-blue-600">Lista de Gastos</h1>
+        <div className="flex gap-4">
+          <Link
+            href="/gastos/nova"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition font-medium shadow-sm"
+          >
+            + Adicionar Gasto
+          </Link>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition font-medium shadow-sm"
+          >
+            📸 Scan de NF
+          </button>
+          <button
+            onClick={handleSuggestCategories}
+            disabled={loadingAi}
+            className={`text-white px-4 py-2 rounded transition font-medium shadow-sm ${loadingAi ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+          >
+            {loadingAi ? 'Analisando...' : 'IA: Corrigir Categorias'}
+          </button>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-wrap gap-4 items-end">
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Categoria</label>
+          <select
+            name="categoria"
+            value={filters.categoria}
+            onChange={handleFilterChange}
+            className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="">Todas</option>
+            {categoriasGastos.map((cat, i) => (
+              <option key={i} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Conta</label>
+          <select
+            name="accountId"
+            value={filters.accountId}
+            onChange={handleFilterChange}
+            className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="">Todas</option>
+            {contas.map((conta) => (
+              <option key={conta.id} value={conta.id}>{conta.nome}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Tipo</label>
+          <select
+            name="tipoCusto"
+            value={filters.tipoCusto}
+            onChange={handleFilterChange}
+            className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500 bg-white"
+          >
+            <option value="">Todos</option>
+            <option value="Variável">Variável</option>
+            <option value="Fixo">Fixo</option>
+          </select>
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Início</label>
+          <input
+            type="date"
+            name="startDate"
+            value={filters.startDate}
+            onChange={handleFilterChange}
+            className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="flex-1 min-w-[150px]">
+          <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Fim</label>
+          <input
+            type="date"
+            name="endDate"
+            value={filters.endDate}
+            onChange={handleFilterChange}
+            className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition"
+          onClick={clearFilters}
+          className="px-4 py-2 bg-gray-200 text-gray-600 rounded hover:bg-gray-300 transition text-sm font-bold h-[38px]"
         >
-          Carregar Nota via Imagem
-        </button>
-        <button
-          onClick={handleSuggestCategories}
-          disabled={loadingAi}
-          className={`text-white px-4 py-2 rounded transition ${loadingAi ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-        >
-          {loadingAi ? 'Analisando...' : 'Corrigir Categorias (IA)'}
+          Limpar
         </button>
       </div>
-      <table className="w-full border-collapse border border-gray-300 bg-white">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="border border-gray-300 p-2">Data</th>
-            <th className="border border-gray-300 p-2">Apelido</th>
-            <th className="border border-gray-300 p-2">Categoria</th>
-            <th className="border border-gray-300 p-2">Tipo</th>
-            <th className="border border-gray-300 p-2">Total</th>
-            <th className="border border-gray-300 p-2">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {gastos.length === 0 ? (
-            <tr>
-              <td colSpan="6" className="border border-gray-300 p-8 text-center text-gray-500 italic">
-                Nenhum gasto cadastrado.
-              </td>
+
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200 text-left">
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase">Data</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase">Apelido</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase">Categoria</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase">Conta</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase text-center">Tipo</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase text-right">Total</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase text-center">Ações</th>
             </tr>
-          ) : (
-            gastos.map((gasto, index) => (
-              <tr key={index} className="hover:bg-gray-50 transition-colors">
-                <td className="border border-gray-300 p-2">{gasto.data}</td>
-                <td className="border border-gray-300 p-2 font-medium">{gasto.apelido || 'Sem Apelido'}</td>
-                <td className="border border-gray-300 p-2">
-                  <span className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-700">{gasto.categoria || '-'}</span>
-                </td>
-                <td className="border border-gray-300 p-2 text-center">
-                  {(() => {
-                    const tipo = gasto.tipoCusto || 'Variável';
-                    return (
-                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${tipo === 'Fixo' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{tipo}</span>
-                    );
-                  })()}
-                </td>
-                <td className="border border-gray-300 p-2 font-bold text-gray-800">R$ {gasto.total.toFixed(2)}</td>
-                <td className="border border-gray-300 p-2">
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/gastos/editar/${gasto.id}`}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
-                      title="Editar"
-                    >
-                      ✏️
-                    </Link>
-                    <Link
-                      href={`/gastos/${gasto.id}`}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded transition"
-                      title="Consultar"
-                    >
-                      🔍
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(index)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded transition"
-                      title="Excluir"
-                    >
-                      🗑️
-                    </button>
-                  </div>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {gastos.length === 0 ? (
+              <tr>
+                <td colSpan="7" className="p-8 text-center text-gray-500 italic bg-gray-50">
+                  Nenhum gasto cadastrado com estes filtros.
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              gastos.map((gasto, index) => (
+                <tr key={index} className="hover:bg-blue-50 transition-colors">
+                  <td className="p-4 text-sm text-gray-600">{gasto.data}</td>
+                  <td className="p-4 text-sm font-bold text-gray-800">{gasto.apelido || 'Sem Apelido'}</td>
+                  <td className="p-4">
+                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold uppercase">{gasto.categoria || '-'}</span>
+                  </td>
+                  <td className="p-4 text-sm text-gray-600 font-medium">{gasto.contaNome}</td>
+                  <td className="p-4 text-center">
+                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${gasto.tipoCusto === 'Fixo' ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {gasto.tipoCusto}
+                    </span>
+                  </td>
+                  <td className="p-4 text-right font-black text-gray-800">R$ {gasto.total.toFixed(2)}</td>
+                  <td className="p-4">
+                    <div className="flex justify-center gap-2">
+                      <Link
+                        href={`/gastos/editar/${gasto.id}`}
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded transition"
+                        title="Editar"
+                      >
+                        ✏️
+                      </Link>
+                      <Link
+                        href={`/gastos/${gasto.id}`}
+                        className="p-2 text-emerald-600 hover:bg-emerald-100 rounded transition"
+                        title="Detalhes"
+                      >
+                        🔍
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(index)}
+                        className="p-2 text-red-600 hover:bg-red-100 rounded transition"
+                        title="Excluir"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-            <h2 className="text-xl font-bold mb-4">Carregar Nota Fiscal</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white p-6 rounded-2xl shadow-xl w-96 border border-gray-200">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">Carregar Nota Fiscal</h2>
             <form onSubmit={handleUpload}>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImage(e.target.files[0])}
-                className="w-full p-2 border border-gray-300 rounded mb-4"
-              />
+              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 mb-6 text-center hover:border-purple-400 transition-colors cursor-pointer group">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImage(e.target.files[0])}
+                  className="hidden"
+                  id="nf-upload"
+                />
+                <label htmlFor="nf-upload" className="cursor-pointer">
+                  <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">📸</div>
+                  <span className="text-sm font-bold text-gray-500">{image ? image.name : 'Selecionar imagem'}</span>
+                </label>
+              </div>
               <button
                 type="submit"
-                className="w-full p-2 text-white rounded bg-purple-600 hover:bg-purple-700 font-medium"
+                className="w-full p-3 text-white rounded-xl bg-purple-600 hover:bg-purple-700 font-bold shadow-lg shadow-purple-100 transition-all"
               >
-                Enviar para Processamento em 2º Plano
+                Processar Agora
               </button>
             </form>
             <button
               onClick={() => setIsModalOpen(false)}
-              className="mt-4 w-full p-2 bg-red-600 text-white rounded hover:bg-red-700"
+              className="mt-4 w-full p-3 text-gray-400 font-bold hover:text-gray-600 transition"
             >
-              Fechar
+              Cancelar
             </button>
           </div>
         </div>
       )}
 
       {isAiModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <h2 className="text-xl font-bold mb-2">Sugestões Inteligentes de Categoria</h2>
-            <p className="text-sm text-gray-600 mb-4">A IA analisou seus gastos e sugeriu as seguintes correções. Selecione quais deseja aplicar.</p>
-            <div className="space-y-4 mb-6 overflow-y-auto pr-2">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col border border-gray-200">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Sugestões de Categoria (IA)</h2>
+              <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Inteligência Artificial</span>
+            </div>
+            <p className="text-sm text-gray-600 mb-6 italic">Selecione as sugestões que deseja aplicar para organizar melhor seus gastos.</p>
+            <div className="space-y-4 mb-6 overflow-y-auto pr-2 custom-scrollbar">
               {aiSuggestions.map((sug, i) => {
                 const gastoOriginal = gastos[sug.index];
                 if (!gastoOriginal) return null;
                 return (
-                  <div key={i} className="flex items-start gap-4 p-3 border rounded bg-gray-50">
+                  <div key={i} className="flex items-start gap-4 p-4 border rounded-xl bg-gray-50 hover:bg-indigo-50 transition-colors border-gray-200">
                     <input
                       type="checkbox"
                       checked={sug.accepted}
@@ -438,21 +410,31 @@ export default function Home() {
                       className="mt-1 w-5 h-5 cursor-pointer accent-indigo-600"
                     />
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-800">{gastoOriginal.apelido || 'Sem apelido'} <span className="text-gray-500 font-normal text-sm">({gastoOriginal.data})</span></p>
-                      <p className="text-sm mt-1">De: <span className="line-through text-red-500">{gastoOriginal.categoria || 'Nenhuma'}</span> Para: <span className="font-bold text-green-600">{sug.categoria_sugerida}</span></p>
-                      <p className="text-xs text-gray-600 mt-2 bg-indigo-50 p-2 rounded border border-indigo-100"><span className="font-semibold text-indigo-800">Motivo:</span> {sug.motivo}</p>
+                      <div className="flex justify-between">
+                        <p className="font-bold text-gray-800">{gastoOriginal.apelido || 'Sem apelido'}</p>
+                        <span className="text-xs text-gray-400">{gastoOriginal.data}</span>
+                      </div>
+                      <p className="text-sm mt-1">
+                        De: <span className="line-through text-red-400">{gastoOriginal.categoria || 'Nenhuma'}</span> 
+                        <span className="mx-2">➔</span>
+                        Para: <span className="font-black text-emerald-600 uppercase">{sug.categoria_sugerida}</span>
+                      </p>
+                      <div className="text-xs text-gray-600 mt-3 bg-white p-3 rounded-lg border border-indigo-100">
+                        <span className="font-bold text-indigo-800 uppercase text-[10px] block mb-1">Motivo da Sugestão:</span> 
+                        {sug.motivo}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="flex gap-4 pt-4 border-t border-gray-200 mt-auto">
-              <button onClick={handleApplyAiSuggestions} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition w-full font-medium">Aplicar Selecionados</button>
-              <button onClick={() => setIsAiModalOpen(false)} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition w-full font-medium">Cancelar</button>
+            <div className="flex gap-4 pt-6 border-t border-gray-100 mt-auto">
+              <button onClick={handleApplyAiSuggestions} className="bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 transition w-full font-bold shadow-lg shadow-emerald-100">Aplicar Sugestões</button>
+              <button onClick={() => setIsAiModalOpen(false)} className="bg-gray-100 text-gray-500 px-6 py-3 rounded-xl hover:bg-gray-200 transition w-full font-bold">Descartar</button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
-}
+}
