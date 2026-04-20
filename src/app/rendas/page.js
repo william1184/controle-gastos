@@ -1,4 +1,6 @@
 "use client";
+import { deleteRenda, getRendas, updateRenda } from '@/lib/rendasDb';
+import { getConfiguracoes } from '@/lib/storeDb';
 import GenerativeLanguageApi from '@/lib/generative_ai_api';
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
@@ -12,22 +14,26 @@ export default function Rendas() {
   const loadingAi = isTaskRunning('ai-categorias-rendas');
 
   useEffect(() => {
-    const storedRendas = JSON.parse(localStorage.getItem('rendas')) || [];
-    setRendas(storedRendas);
+    const loadRendas = async () => {
+      const loadedRendas = await getRendas();
+      setRendas(loadedRendas);
+    };
+    loadRendas();
   }, []);
 
-  const handleDelete = (index) => {
-    const updatedRendas = [...rendas];
-    updatedRendas.splice(index, 1);
-    setRendas(updatedRendas);
-    localStorage.setItem('rendas', JSON.stringify(updatedRendas));
+  const handleDelete = async (index) => {
+    const renda = rendas[index];
+    if (renda && renda.id) {
+      await deleteRenda(renda.id);
+      setRendas(rendas.filter((_, i) => i !== index));
+    }
   };
 
   const handleSuggestCategories = async () => {
     if (rendas.length === 0) return alert('Nenhuma renda cadastrada para analisar.');
 
     try {
-      const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
+      const config = await getConfiguracoes();
       const apiKey = config.geminiApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
       if (!apiKey) {
@@ -65,17 +71,15 @@ export default function Rendas() {
     setAiSuggestions(updated);
   };
 
-  const handleApplyAiSuggestions = () => {
-    setRendas((prevRendas) => {
-      const updatedRendas = [...prevRendas];
-      aiSuggestions.forEach(sug => {
-        if (sug.accepted && updatedRendas[sug.index]) {
-          updatedRendas[sug.index].categoria = sug.categoria_sugerida;
-        }
-      });
-      localStorage.setItem('rendas', JSON.stringify(updatedRendas));
-      return updatedRendas;
-    });
+  const handleApplyAiSuggestions = async () => {
+    const updatedRendas = [...rendas];
+    for (const sug of aiSuggestions) {
+      if (sug.accepted && updatedRendas[sug.index]) {
+        updatedRendas[sug.index].categoria = sug.categoria_sugerida;
+        await updateRenda(updatedRendas[sug.index].id, updatedRendas[sug.index]);
+      }
+    }
+    setRendas(updatedRendas);
     setIsAiModalOpen(false);
     setAiSuggestions([]);
   };
@@ -118,7 +122,7 @@ export default function Rendas() {
               <td className="border border-gray-300 p-2 text-center">
                 <div className="flex justify-center gap-2">
                   <Link
-                    href={`/rendas/editar/${index}`}
+                    href={`/rendas/editar?id=${renda.id}`}
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
                   >
                     Editar

@@ -1,4 +1,5 @@
 "use client";
+import { addGasto } from '@/lib/gastosDb';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -34,10 +35,8 @@ export default function NovaGasto() {
     setTotal(updatedProdutos.reduce((sum, p) => sum + p.preco_total, 0));
   };
 
-  const handleSave = () => {
-    const storedGastos = JSON.parse(localStorage.getItem('gastos')) || [];
-    const novaGasto = { produtos, data, apelido, total };
-    localStorage.setItem('gastos', JSON.stringify([...storedGastos, novaGasto]));
+  const handleSave = async () => {
+    await addGasto({ data, apelido, categoria: '', total, tipoCusto: 'Variável', perfilId: 0, produtos });
     router.push('/gastos');
   };
 

@@ -1,4 +1,6 @@
 "use client";
+import { addRenda } from '@/lib/rendasDb';
+import { getConfiguracoes } from '@/lib/storeDb';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -14,22 +16,22 @@ export default function NovaRenda() {
     const hoje = new Date().toISOString().split('T')[0];
     setData(hoje);
 
-    const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
-    const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos (juros, dividendos)', 'Rendimentos', 'Outros'];
-    setCategoriasSalvas(categorias);
-    setCategoria(categorias[0] || 'Outros');
+    const loadData = async () => {
+      const config = await getConfiguracoes();
+      const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
+      setCategoriasSalvas(categorias);
+      setCategoria(categorias[0] || 'Outros');
+    };
+    loadData();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!data || !categoria || !valor || parseFloat(valor) <= 0) {
       alert('Por favor, preencha a data, a categoria e um valor maior que zero.');
       return;
     }
 
-    const storedRendas = JSON.parse(localStorage.getItem('rendas')) || [];
-    const novaRenda = { data, descricao, categoria, valor: parseFloat(valor) };
-    
-    localStorage.setItem('rendas', JSON.stringify([...storedRendas, novaRenda]));
+    await addRenda({ data, descricao, categoria, valor: parseFloat(valor) });
     router.push('/rendas');
   };
 

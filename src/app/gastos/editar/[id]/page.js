@@ -1,4 +1,6 @@
 "use client";
+import { getGastoById, updateGasto } from '@/lib/gastosDb';
+import { getConfiguracoes } from '@/lib/storeDb';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -7,40 +9,44 @@ export default function EditarGasto() {
   const [data, setData] = useState('');
   const [apelido, setApelido] = useState(''); // Estado para o apelido
   const [categoria, setCategoria] = useState(''); // Estado para a categoria
+  const [tipoCusto, setTipoCusto] = useState('Variável'); // Estado para tipo de custo
+  const [perfilId, setPerfilId] = useState(''); // Estado para o perfil
   const [categoriasSalvas, setCategoriasSalvas] = useState([]);
+  const [perfis, setPerfis] = useState([]);
   const [total, setTotal] = useState(0);
   const router = useRouter();
   const { id } = useParams();
 
   useEffect(() => {
-    const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
-    let categorias = config.categoriasGastos || [
-      { nome: 'Moradia', tipo: 'Fixo' },
-      { nome: 'Contas', tipo: 'Fixo' },
-      { nome: 'Alimentação', tipo: 'Variável' },
-      { nome: 'Transporte', tipo: 'Variável' },
-      { nome: 'Saúde', tipo: 'Variável' },
-      { nome: 'Educação', tipo: 'Fixo' },
-      { nome: 'Lazer', tipo: 'Variável' },
-      { nome: 'Investimentos', tipo: 'Variável' },
-      { nome: 'Outros', tipo: 'Variável' }
-    ];
-    if (categorias.length > 0 && typeof categorias[0] === 'string') {
-      categorias = categorias.map(c => ({ nome: c, tipo: 'Variável' }));
-    }
-    setCategoriasSalvas(categorias);
-
-    if (id) {
-      const storedGastos = JSON.parse(localStorage.getItem('gastos')) || [];
-      const gasto = storedGastos[id];
-      if (gasto) {
-        setProdutos(gasto.produtos);
-        setData(gasto.data);
-        setApelido(gasto.apelido || ''); // Carrega o apelido, se existir
-        setCategoria(gasto.categoria || categorias[0]?.nome || 'Outros');
-        setTotal(gasto.total);
+    const loadData = async () => {
+      const config = await getConfiguracoes();
+      
+      let categorias = config.categoriasGastos || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
+      if (categorias.length > 0 && typeof categorias[0] === 'object') {
+        categorias = categorias.map(c => c.nome);
       }
-    }
+      setCategoriasSalvas(categorias);
+
+      let loadedPerfis = config.perfis || [];
+      if (loadedPerfis.length === 0) {
+        loadedPerfis = [{ id: 0, nome: 'Perfil Padrão', renda: 1200, dataNascimento: '1992-04-27' }];
+      }
+      setPerfis(loadedPerfis);
+
+      if (id) {
+        const gasto = await getGastoById(Number(id));
+        if (gasto) {
+          setProdutos(gasto.produtos || []);
+          setData(gasto.data);
+          setApelido(gasto.apelido || '');
+          setCategoria(gasto.categoria || categorias[0] || 'Outros');
+          setPerfilId(gasto.perfilId !== undefined && gasto.perfilId !== null ? gasto.perfilId : loadedPerfis[0].id);
+          setTipoCusto(gasto.tipoCusto || 'Variável');
+          setTotal(gasto.total);
+        }
+      }
+    };
+    loadData();
   }, [id]);
 
   const handleAddProduto = () => {
@@ -60,16 +66,18 @@ export default function EditarGasto() {
     setTotal(updatedProdutos.reduce((sum, p) => sum + p.preco_total, 0));
   };
 
-  const handleSave = () => {
-    if (!data || !categoria || total <= 0) {
-      alert('Por favor, preencha a data, a categoria e adicione produtos para que o total seja maior que zero.');
+  const handleCategoriaChange = (e) => {
+    const newCat = e.target.value;
+    setCategoria(newCat);
+  };
+
+  const handleSave = async () => {
+    if (!data || !categoria || total < 0 || perfilId === '') {
+      alert('Por favor, preencha todos os campos obrigatórios (data, categoria, perfil).');
       return;
     }
 
-    const storedGastos = JSON.parse(localStorage.getItem('gastos')) || [];
-    const updatedGasto = { produtos, data, apelido, categoria, total }; // Inclui categoria no gasto
-    storedGastos[id] = updatedGasto;
-    localStorage.setItem('gastos', JSON.stringify(storedGastos));
+    await updateGasto(Number(id), { data, apelido, categoria, tipoCusto, total, perfilId, produtos });
     router.push('/gastos');
   };
 
@@ -91,16 +99,39 @@ export default function EditarGasto() {
         />
       </div>
       <div className="mb-4">
+        <label className="block text-sm font-medium">Perfil</label>
+        <select
+          value={perfilId}
+          onChange={(e) => setPerfilId(Number(e.target.value))}
+          className="w-full p-2 border rounded bg-white focus:ring-blue-500 focus:border-blue-500"
+        >
+          {perfis.map((p) => (
+            <option key={p.id} value={p.id}>{p.nome}</option>
+          ))}
+        </select>
+      </div>
+      <div className="mb-4">
         <label className="block text-sm font-medium">Categoria</label>
         <select
           value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
+          onChange={handleCategoriaChange}
           className="w-full p-2 border rounded bg-white focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Selecione uma categoria...</option>
           {categoriasSalvas.map((cat, idx) => (
-            <option key={idx} value={cat.nome}>{cat.nome} ({cat.tipo})</option>
+            <option key={idx} value={cat}>{cat}</option>
           ))}
+        </select>
+      </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium">Tipo de Custo</label>
+        <select
+          value={tipoCusto}
+          onChange={(e) => setTipoCusto(e.target.value)}
+          className="w-full p-2 border rounded bg-white focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="Fixo">Fixo</option>
+          <option value="Variável">Variável</option>
         </select>
       </div>
       <div className="mb-4">

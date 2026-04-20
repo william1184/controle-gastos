@@ -1,44 +1,52 @@
 "use client";
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { getRendaById, updateRenda } from '@/lib/rendasDb';
+import { getConfiguracoes } from '@/lib/storeDb';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 
-export default function EditarRenda() {
+function FormEditarRenda() {
   const [data, setData] = useState('');
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState('');
   const [categoriasSalvas, setCategoriasSalvas] = useState([]);
   const router = useRouter();
-  const { id } = useParams();
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
   useEffect(() => {
-    const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
-    const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
-    setCategoriasSalvas(categorias);
+    async function loadData() {
+      const config = await getConfiguracoes();
+      const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
+      setCategoriasSalvas(categorias);
 
-    if (id) {
-      const storedRendas = JSON.parse(localStorage.getItem('rendas')) || [];
-      const renda = storedRendas[id];
-      if (renda) {
-        setData(renda.data);
-        setDescricao(renda.descricao);
-        setCategoria(renda.categoria || categorias[0] || 'Outros');
-        setValor(renda.valor);
+      if (id !== null) {
+        const renda = await getRendaById(Number(id));
+        if (renda) {
+          setData(renda.data);
+          setDescricao(renda.descricao);
+          setCategoria(renda.categoria || categorias[0] || 'Outros');
+          setValor(renda.valor);
+        }
       }
     }
+    loadData();
   }, [id]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!data || !categoria || !valor || parseFloat(valor) <= 0) {
       alert('Por favor, preencha a data, a categoria e um valor maior que zero.');
       return;
     }
 
-    const storedRendas = JSON.parse(localStorage.getItem('rendas')) || [];
-    const updatedRenda = { data, descricao, categoria, valor: parseFloat(valor) };
-    storedRendas[id] = updatedRenda;
+    if (id === null) return;
+
+    const renda = await getRendaById(Number(id));
+    if (renda) {
+      const updatedRenda = { ...renda, data, descricao, categoria, valor: parseFloat(valor) };
+      await updateRenda(Number(id), updatedRenda);
+    }
     
-    localStorage.setItem('rendas', JSON.stringify(storedRendas));
     router.push('/rendas');
   };
 
@@ -104,5 +112,13 @@ export default function EditarRenda() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EditarRenda() {
+  return (
+    <Suspense fallback={<div className="p-6 bg-gray-100 min-h-screen text-gray-600">Carregando...</div>}>
+      <FormEditarRenda />
+    </Suspense>
   );
 }

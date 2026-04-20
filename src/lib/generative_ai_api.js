@@ -145,9 +145,15 @@ class GenerativeLanguageApi {
       model: "gemini-flash-latest",
     });
 
+    let perfisInfo = "";
+    if (resumoOrcamento.perfis && resumoOrcamento.perfis.length > 0) {
+      perfisInfo = "Perfis da Família/Casa:\n" + resumoOrcamento.perfis.map(p => `- Nome: ${p.nome}, Renda: R$ ${p.renda}, Data de Nascimento: ${p.dataNascimento}`).join("\n") + "\nConsidere esses perfis (idade, renda individual, momento de vida) ao fornecer dicas altamente direcionadas para a realidade da família.\n";
+    }
+
     const prompt = `
     Você é um consultor financeiro pessoal super inteligente. Analise o seguinte resumo financeiro e forneça insights acionáveis, claros e objetivos para ajudar o usuário a melhorar sua saúde financeira.
 
+    ${perfisInfo}
     Resumo do período (${resumoOrcamento.periodo}):
     - Total de Rendas: R$ ${resumoOrcamento.totalRendas}
     - Total de Gastos: R$ ${resumoOrcamento.totalGastos}

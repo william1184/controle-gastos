@@ -1,4 +1,6 @@
 "use client";
+import { addGasto, clearGastos, deleteGasto, getGastos, updateGasto } from '@/lib/gastosDb';
+import { getConfiguracoes } from '@/lib/storeDb';
 import GenerativeLanguageApi from '@/lib/generative_ai_api';
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
@@ -10,26 +12,47 @@ export default function Home() {
   const [image, setImage] = useState(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [categoriasGastos, setCategoriasGastos] = useState([]); // This would also likely come from DB
   const { runTask, isTaskRunning } = useBackgroundTask();
   const loadingAi = isTaskRunning('ai-categorias-gastos');
 
   useEffect(() => {
-    const storedGastos = JSON.parse(localStorage.getItem('gastos')) || [];
-    setGastos(storedGastos);
+    const loadData = async () => {
+      const loadedGastos = await getGastos();
+      setGastos(loadedGastos);
+
+      const config = await getConfiguracoes();
+      let catGastos = config.categoriasGastos || [];
+      if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
+        catGastos = catGastos.map(c => c.nome);
+      }
+      setCategoriasGastos(catGastos);
+    };
+    loadData();
   }, []);
 
-  const handleDelete = (index) => {
-    const updatedGastos = [...gastos];
-    updatedGastos.splice(index, 1);
-    setGastos(updatedGastos);
-    localStorage.setItem('gastos', JSON.stringify(updatedGastos));
+  const handleDelete = async (index) => {
+    const gastoToDelete = gastos[index];
+    if (!gastoToDelete || !gastoToDelete.id) {
+      console.error('Gasto ID not found for deletion:', gastoToDelete);
+      return;
+    }
+    try {
+      await deleteGasto(gastoToDelete.id);
+      const updatedGastos = gastos.filter((_, i) => i !== index);
+      setGastos(updatedGastos);
+      alert('Gasto excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir gasto do DB:', error);
+      alert('Erro ao excluir gasto.');
+    }
   };
 
   const handleUpload = async (e) => {
     e.preventDefault();
 
     try {
-      const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
+      const config = await getConfiguracoes();
       const apiKey = config.geminiApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
       
       if (!apiKey) {
@@ -63,11 +86,12 @@ export default function Home() {
           return data;
         },
         (data) => {
-          setGastos((prevGastos) => {
-            const updatedGastos = [...prevGastos, data];
-            localStorage.setItem('gastos', JSON.stringify(updatedGastos));
-            return updatedGastos;
-          });
+          const saveAiToDb = async (gasto) => {
+            await addGasto({ ...gasto, tipoCusto: 'Variável' });
+            const loadedGastos = await getGastos();
+            setGastos(loadedGastos);
+          };
+          saveAiToDb(data);
         },
         (error) => {
           alert('Erro ao processar imagem: ' + error.message);
@@ -124,7 +148,7 @@ export default function Home() {
     if (gastos.length === 0) return alert('Nenhum gasto cadastrado para analisar.');
 
     try {
-      const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
+      const config = await getConfiguracoes();
       const apiKey = config.geminiApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
       if (!apiKey) {
@@ -167,17 +191,15 @@ export default function Home() {
     setAiSuggestions(updated);
   };
 
-  const handleApplyAiSuggestions = () => {
-    setGastos((prevGastos) => {
-      const updatedGastos = [...prevGastos];
-      aiSuggestions.forEach(sug => {
-        if (sug.accepted && updatedGastos[sug.index]) {
-          updatedGastos[sug.index].categoria = sug.categoria_sugerida;
-        }
-      });
-      localStorage.setItem('gastos', JSON.stringify(updatedGastos));
-      return updatedGastos;
-    });
+  const handleApplyAiSuggestions = async () => {
+    const updatedGastos = [...gastos];
+    for (const sug of aiSuggestions) {
+      if (sug.accepted && updatedGastos[sug.index]) {
+        updatedGastos[sug.index].categoria = sug.categoria_sugerida;
+        await updateGasto(updatedGastos[sug.index].id, updatedGastos[sug.index]);
+      }
+    }
+    setGastos(updatedGastos);
     setIsAiModalOpen(false);
     setAiSuggestions([]);
   };
@@ -192,7 +214,7 @@ export default function Home() {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target.result;
         const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
@@ -263,8 +285,13 @@ export default function Home() {
           }
         }
 
-        setGastos(importedGastos);
-        localStorage.setItem('gastos', JSON.stringify(importedGastos));
+        await clearGastos();
+        for (const g of importedGastos) {
+          await addGasto(g);
+        }
+        const finalGastos = await getGastos();
+        setGastos(finalGastos);
+        
         alert('Base importada com sucesso!');
         event.target.value = ''; // Limpa o input
       } catch (error) {
@@ -305,6 +332,7 @@ export default function Home() {
             <th className="border border-gray-300 p-2">Data</th>
             <th className="border border-gray-300 p-2">Apelido</th>
             <th className="border border-gray-300 p-2">Categoria</th>
+            <th className="border border-gray-300 p-2">Tipo</th>
             <th className="border border-gray-300 p-2">Total</th>
             <th className="border border-gray-300 p-2">Ações</th>
           </tr>
@@ -315,17 +343,25 @@ export default function Home() {
               <td className="border border-gray-300 p-2">{gasto.data}</td>
               <td className="border border-gray-300 p-2">{gasto.apelido || 'Sem Apelido'}</td>
               <td className="border border-gray-300 p-2">{gasto.categoria || '-'}</td>
+              <td className="border border-gray-300 p-2 text-center">
+                {(() => {
+                  const tipo = gasto.tipoCusto || 'Variável';
+                  return (
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${tipo === 'Fixo' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{tipo}</span>
+                  );
+                })()}
+              </td>
               <td className="border border-gray-300 p-2">R$ {gasto.total.toFixed(2)}</td>
               <td className="border border-gray-300 p-2">
                 <div className="flex gap-2">
                   <Link
-                    href={`/gastos/editar/${index}`}
+                    href={`/gastos/editar/${gasto.id}`}
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
                   >
                     Editar
                   </Link>
                   <Link
-                    href={`/gastos/${index}`}
+                    href={`/gastos/${gasto.id}`}
                     className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
                   >
                     Consultar

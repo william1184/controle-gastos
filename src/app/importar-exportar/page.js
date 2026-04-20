@@ -1,4 +1,7 @@
 "use client";
+import { addGasto, clearGastos, getGastos } from '@/lib/gastosDb';
+import { addRenda, clearRendas, getRendas } from '@/lib/rendasDb';
+import { getConfiguracoes } from '@/lib/storeDb';
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 
@@ -7,36 +10,37 @@ export default function ImportExport() {
   const [rendas, setRendas] = useState([]);
   const [categoriasGastos, setCategoriasGastos] = useState([]);
   const [categoriasRendas, setCategoriasRendas] = useState([]);
+  const [perfis, setPerfis] = useState([]);
 
   // Estados de Mapeamento de Extrato CSV
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [csvHeaders, setCsvHeaders] = useState([]);
   const [csvLines, setCsvLines] = useState([]);
   const [csvMapping, setCsvMapping] = useState({ data: '', valor: '', descricao: '', tipo: '' });
+  const [csvProfileId, setCsvProfileId] = useState(0);
 
   useEffect(() => {
-    const storedGastos = JSON.parse(localStorage.getItem('gastos')) || [];
-    const storedRendas = JSON.parse(localStorage.getItem('rendas')) || [];
-    setGastos(storedGastos);
-    setRendas(storedRendas);
+    async function loadData() {
+      const storedGastos = await getGastos();
+      const storedRendas = await getRendas();
+      setGastos(storedGastos);
+      setRendas(storedRendas);
 
-    const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
-    let catGastos = config.categoriasGastos || [
-      { nome: 'Moradia', tipo: 'Fixo' },
-      { nome: 'Contas', tipo: 'Fixo' },
-      { nome: 'Alimentação', tipo: 'Variável' },
-      { nome: 'Transporte', tipo: 'Variável' },
-      { nome: 'Saúde', tipo: 'Variável' },
-      { nome: 'Educação', tipo: 'Fixo' },
-      { nome: 'Lazer', tipo: 'Variável' },
-      { nome: 'Investimentos', tipo: 'Variável' },
-      { nome: 'Outros', tipo: 'Variável' }
-    ];
-    if (catGastos.length > 0 && typeof catGastos[0] === 'string') {
-      catGastos = catGastos.map(c => ({ nome: c, tipo: 'Variável' }));
+      const config = await getConfiguracoes();
+      let catGastos = config.categoriasGastos || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
+      if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
+        catGastos = catGastos.map(c => c.nome);
+      }
+      setCategoriasGastos(catGastos);
+      setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
+
+      let loadedPerfis = config.perfis || [];
+      if (loadedPerfis.length === 0) {
+        loadedPerfis = [{ id: 0, nome: 'Perfil Padrão', renda: 1200, dataNascimento: '1992-04-27' }];
+      }
+      setPerfis(loadedPerfis);
     }
-    setCategoriasGastos(catGastos);
-    setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
+    loadData();
   }, []);
 
   const handleExportExcel = () => {
@@ -48,19 +52,21 @@ export default function ImportExport() {
 
     // --- Aba de Gastos ---
     const gastosData = [
-      ["ID Gasto", "Data", "Apelido", "Categoria", "Total Gasto", "Nome do Produto", "Codigo do Produto", "Quantidade", "Unidade", "Preco Unitario", "Preco Total"]
+      ["ID Gasto", "ID Perfil", "Data", "Apelido", "Categoria", "Tipo Custo", "Total Gasto", "Nome do Produto", "Codigo do Produto", "Quantidade", "Unidade", "Preco Unitario", "Preco Total"]
     ];
 
     gastos.forEach((gasto, index) => {
       if (!gasto.produtos || gasto.produtos.length === 0) {
-        gastosData.push([index, gasto.data, gasto.apelido || '', gasto.categoria || '', gasto.total, '', '', '', '', '', '']);
+        gastosData.push([index, gasto.perfilId !== undefined ? gasto.perfilId : 0, gasto.data, gasto.apelido || '', gasto.categoria || '', gasto.tipoCusto || '', gasto.total, '', '', '', '', '', '']);
       } else {
         gasto.produtos.forEach(produto => {
           gastosData.push([
             index,
+            gasto.perfilId !== undefined ? gasto.perfilId : 0,
             gasto.data,
             gasto.apelido || '',
             gasto.categoria || '',
+            gasto.tipoCusto || '',
             gasto.total,
             produto.nome || '',
             produto.codigo || '',
@@ -98,7 +104,7 @@ export default function ImportExport() {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -117,24 +123,34 @@ export default function ImportExport() {
             if (cols.length === 0) continue;
 
             let id = cols[0];
-            let data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr;
+            let perfilId = 0, data, apelido, categoria, tipoCusto = '', totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr;
             
             if (gastosRows[0].length === 10) {
                data = cols[1]; apelido = cols[2]; categoria = ''; totalStr = cols[3]; 
                pNome = cols[4]; pCodigo = cols[5]; pQtdStr = cols[6]; pUnidade = cols[7]; 
                pPrecoUniStr = cols[8]; pPrecoTotStr = cols[9];
-            } else {
+            } else if (gastosRows[0].length === 11) {
                data = cols[1]; apelido = cols[2]; categoria = cols[3]; totalStr = cols[4]; 
                pNome = cols[5]; pCodigo = cols[6]; pQtdStr = cols[7]; pUnidade = cols[8]; 
                pPrecoUniStr = cols[9]; pPrecoTotStr = cols[10];
+            } else {
+               if (gastosRows[0].length >= 13 && gastosRows[0][5] === "Tipo Custo") {
+                 perfilId = cols[1]; data = cols[2]; apelido = cols[3]; categoria = cols[4]; tipoCusto = cols[5]; totalStr = cols[6]; 
+                 pNome = cols[7]; pCodigo = cols[8]; pQtdStr = cols[9]; pUnidade = cols[10]; pPrecoUniStr = cols[11]; pPrecoTotStr = cols[12];
+               } else {
+                 perfilId = cols[1]; data = cols[2]; apelido = cols[3]; categoria = cols[4]; totalStr = cols[5]; 
+                 pNome = cols[6]; pCodigo = cols[7]; pQtdStr = cols[8]; pUnidade = cols[9]; pPrecoUniStr = cols[10]; pPrecoTotStr = cols[11];
+               }
             }
 
             if (id !== undefined && id !== "" && id !== currentGastoId) {
               currentGastoId = id;
               currentGasto = {
+                perfilId: parseInt(perfilId) || 0,
                 data: data,
                 apelido: apelido,
                 categoria: categoria,
+                tipoCusto: tipoCusto || 'Variável',
                 total: parseFloat(totalStr) || 0,
                 produtos: []
               };
@@ -152,17 +168,23 @@ export default function ImportExport() {
               });
             }
           }
-          setGastos(importedGastos);
-          localStorage.setItem('gastos', JSON.stringify(importedGastos));
+          await clearGastos();
+          for (const g of importedGastos) {
+            await addGasto(g);
+          }
+          const loadedGastos = await getGastos();
+          setGastos(loadedGastos);
         }
 
-        // --- Importar Rendas ---
         const wsRendas = workbook.Sheets["Rendas"];
-        let importedRendas = [...rendas];
         if (wsRendas) {
-          importedRendas = XLSX.utils.sheet_to_json(wsRendas);
-          setRendas(importedRendas);
-          localStorage.setItem('rendas', JSON.stringify(importedRendas));
+          const importedRendas = XLSX.utils.sheet_to_json(wsRendas);
+          await clearRendas();
+          for (const r of importedRendas) {
+            await addRenda(r);
+          }
+          const loadedRendas = await getRendas();
+          setRendas(loadedRendas);
         }
 
         alert('Base importada com sucesso!');
@@ -228,6 +250,7 @@ export default function ImportExport() {
           descricao: descIdx !== -1 ? headers[descIdx] : '',
           tipo: tipoIdx !== -1 ? headers[tipoIdx] : ''
         });
+        setCsvProfileId(perfis.length > 0 ? perfis[0].id : 0);
         setIsCsvModalOpen(true);
         event.target.value = '';
       } catch (error) {
@@ -238,7 +261,7 @@ export default function ImportExport() {
     reader.readAsText(file);
   };
 
-  const handleConfirmMapping = () => {
+  const handleConfirmMapping = async () => {
     if (!csvMapping.data || !csvMapping.valor) {
       alert("Por favor, mapeie pelo menos as colunas de Data e Valor.");
       return;
@@ -309,8 +332,10 @@ export default function ImportExport() {
           novosGastos.push({
             data,
             apelido: descricao || 'Gasto do Extrato',
-            categoria: categoriasGastos.length > 0 ? categoriasGastos[0].nome : 'Outros',
+            categoria: categoriasGastos.length > 0 ? categoriasGastos[0] : 'Outros',
+            tipoCusto: 'Variável',
             total: Math.abs(valorFinal),
+            perfilId: csvProfileId,
             produtos: []
           });
         } else {
@@ -318,19 +343,25 @@ export default function ImportExport() {
             data,
             descricao: descricao || 'Renda do Extrato',
             categoria: categoriasRendas.length > 0 ? categoriasRendas[0] : 'Outros',
-            valor: valorFinal
+            valor: valorFinal,
+            perfilId: csvProfileId
           });
         }
       }
     }
 
     if (novosGastos.length > 0 || novasRendas.length > 0) {
-      const updatedGastos = [...gastos, ...novosGastos];
-      const updatedRendas = [...rendas, ...novasRendas];
+      for (const g of novosGastos) {
+        await addGasto(g);
+      }
+      for (const r of novasRendas) {
+        await addRenda(r);
+      }
+      
+      const updatedGastos = await getGastos();
+      const updatedRendas = await getRendas();
       setGastos(updatedGastos);
       setRendas(updatedRendas);
-      localStorage.setItem('gastos', JSON.stringify(updatedGastos));
-      localStorage.setItem('rendas', JSON.stringify(updatedRendas));
       alert(`Extrato importado com sucesso!\n\n${novosGastos.length} gastos adicionados.\n${novasRendas.length} rendas adicionadas.`);
     } else {
       alert('Nenhum registro válido encontrado. Verifique o mapeamento das colunas.');
@@ -407,6 +438,13 @@ export default function ImportExport() {
               <select value={csvMapping.data} onChange={e => setCsvMapping({...csvMapping, data: e.target.value})} className="w-full p-2 border border-gray-300 rounded bg-white">
                 <option value="">-- Selecione --</option>
                 {csvHeaders.map(h => <option key={`data-${h}`} value={h}>{h}</option>)}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Perfil de Destino *</label>
+              <select value={csvProfileId} onChange={e => setCsvProfileId(Number(e.target.value))} className="w-full p-2 border border-gray-300 rounded bg-white">
+                {perfis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
 

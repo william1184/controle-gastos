@@ -1,4 +1,5 @@
 "use client";
+import { getGastoById } from '@/lib/gastosDb';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -11,16 +12,18 @@ export default function ConsultaCompra() {
   const router = useRouter();
 
   useEffect(() => {
-    if (id) {
-      const storedGastos = JSON.parse(localStorage.getItem('gastos')) || [];
-      const gasto = storedGastos[id];
-      if (gasto) {
-        setProdutos(gasto.produtos);
-        setData(gasto.data);
-        setApelido(gasto.apelido || ''); // Carrega o apelido, se existir
-        setTotal(gasto.total);
+    const loadData = async () => {
+      if (id) {
+        const gasto = await getGastoById(Number(id));
+        if (gasto) {
+          setProdutos(gasto.produtos || []);
+          setData(gasto.data);
+          setApelido(gasto.apelido || '');
+          setTotal(gasto.total);
+        }
       }
-    }
+    };
+    loadData();
   }, [id]);
 
   const handleBack = () => {
