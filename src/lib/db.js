@@ -6,12 +6,15 @@ import IndexedDBBackend from 'absurd-sql/dist/indexeddb-backend';
 
 let SQL; // The SQL.js object
 let db;  // The database instance
+let initPromise = null;
 
 export async function initDb() {
-  if (db) return db; // Return existing instance if already initialized
+  if (db) return db;
+  if (initPromise) return initPromise;
 
-  // Prevent execution during Server-Side Rendering (SSR)
-  if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') return null;
+  initPromise = (async () => {
+    // Prevent execution during Server-Side Rendering (SSR)
+    if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') return null;
 
   if (process.env.NODE_ENV === 'test') {
     const fs = require('fs');
@@ -45,7 +48,7 @@ export async function initDb() {
   
   SQL.FS.mount(sqlFS, {}, '/sql');
 
-  const dbPath = '/sql/gastos.sqlite';
+  const dbPath = '/sql/orcamento.sqlite';
   
   // Support environments without SharedArrayBuffer
   if (typeof SharedArrayBuffer === 'undefined') {
@@ -61,49 +64,166 @@ export async function initDb() {
   db.exec(`
     PRAGMA page_size=8192;
     PRAGMA journal_mode=MEMORY;
+    PRAGMA foreign_keys = ON;
   `);
 
   await createTables(db);
+  await seedDefaultData(db);
 
-  console.log('SQLite database initialized and persisted to IndexedDB.');
-  return db;
+    console.log('SQLite database initialized and persisted to IndexedDB.');
+    return db;
+  })();
+
+  return initPromise;
 }
 
 async function createTables(database) {
   await database.exec(`
-    CREATE TABLE IF NOT EXISTS gastos (
+    CREATE TABLE IF NOT EXISTS entidade (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      data TEXT NOT NULL,
-      apelido TEXT,
-      categoria TEXT,
-      total REAL NOT NULL,
-      tipoCusto TEXT,
-      perfilId INTEGER
-    );
-    CREATE TABLE IF NOT EXISTS produtos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      gasto_id INTEGER NOT NULL,
       nome TEXT,
-      codigo TEXT,
-      quantidade REAL,
-      unidade TEXT,
-      preco_unitario REAL,
-      preco_total REAL,
-      FOREIGN KEY (gasto_id) REFERENCES gastos(id) ON DELETE CASCADE
+      is_contexto_pessoal INTEGER DEFAULT 1, -- 1 para Pessoal, 0 para Empresarial
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT
     );
-    CREATE TABLE IF NOT EXISTS rendas (
+    CREATE TABLE IF NOT EXISTS usuario (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT,
+      entidade_id INTEGER,
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT,
+      FOREIGN KEY (entidade_id) REFERENCES entidade(id)
+    );
+    CREATE TABLE IF NOT EXISTS conta (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT,
+      tipo TEXT, -- carteira, banco, credito
+      saldo_inicial REAL,
+      entidade_id INTEGER,
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT,
+      FOREIGN KEY (entidade_id) REFERENCES entidade(id)
+    );
+    CREATE TABLE IF NOT EXISTS categoria (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT,
+      tipo TEXT CHECK(tipo IN ('entrada','saida')),
+      parent_id INTEGER,
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT
+    );
+    CREATE TABLE IF NOT EXISTS transacao (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       data TEXT NOT NULL,
       descricao TEXT,
-      categoria TEXT,
       valor REAL NOT NULL,
-      perfilId INTEGER
+      tipo TEXT CHECK(tipo IN ('entrada','saida')),
+      categoria_id INTEGER,
+      conta_id INTEGER,
+      usuario_id INTEGER,
+      recorrencia_id INTEGER,
+      ai_categoria_sugerida TEXT,
+      ai_confianca REAL,
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT,
+      FOREIGN KEY (categoria_id) REFERENCES categoria(id),
+      FOREIGN KEY (conta_id) REFERENCES conta(id),
+      FOREIGN KEY (usuario_id) REFERENCES usuario(id)
     );
+    CREATE TABLE IF NOT EXISTS itens_transacao (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transacao_id INTEGER,
+      nome TEXT,
+      quantidade REAL,
+      unidade TEXT,
+      preco_unitario REAL,
+      total REAL,
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT,
+      FOREIGN KEY (transacao_id) REFERENCES transacao(id)
+    );
+    CREATE TABLE IF NOT EXISTS recorrencia (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      descricao TEXT,
+      frequencia TEXT, -- mensal, semanal, anual
+      proxima_execucao TEXT,
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT
+    );
+    CREATE TABLE IF NOT EXISTS tag (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT,
+      created_at TEXT,
+      updated_at TEXT,
+      deleted_at TEXT,
+      sync_status TEXT
+    );
+    CREATE TABLE IF NOT EXISTS transacao_tag (
+      transacao_id INTEGER,
+      tag_id INTEGER,
+      PRIMARY KEY (transacao_id, tag_id),
+      FOREIGN KEY (transacao_id) REFERENCES transacao(id),
+      FOREIGN KEY (tag_id) REFERENCES tag(id)
+    );
+    -- Tabela de configuração/store legada
     CREATE TABLE IF NOT EXISTS store (
       key TEXT PRIMARY KEY,
       value TEXT
     );
   `);
+  
+  // Migração simples para quem já tem a base antiga
+  try {
+    await database.exec("ALTER TABLE entidade ADD COLUMN is_contexto_pessoal INTEGER DEFAULT 1");
+  } catch (e) {
+    // Coluna já existe ou erro ignorável
+  }
+  try {
+    await database.exec("DROP TABLE IF EXISTS contexto");
+  } catch (e) {
+    // Erro ignorável
+  }
+}
+
+async function seedDefaultData(database) {
+  // Verifica se já existem dados para evitar duplicidade
+  const res = database.exec("SELECT COUNT(*) FROM entidade");
+  if (res[0].values[0][0] > 0) return;
+
+  const now = new Date().toISOString();
+
+  database.run("INSERT INTO entidade (id, nome, is_contexto_pessoal, created_at) VALUES (1, 'Família Padrão', 1, ?)", [now]);
+  database.run("INSERT INTO usuario (id, nome, entidade_id, created_at) VALUES (1, 'Usuário Padrão', 1, ?)", [now]);
+  database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (1, 'Carteira', 'carteira', 0, 1, ?)", [now]);
+  
+  // Categorias iniciais
+  const categorias = [
+    ['Alimentação', 'saida'],
+    ['Salário', 'entrada'],
+    ['Lazer', 'saida'],
+    ['Transporte', 'saida'],
+    ['Saúde', 'saida'],
+    ['Educação', 'saida'],
+    ['Outros', 'saida']
+  ];
+  
+  categorias.forEach(cat => {
+    database.run("INSERT INTO categoria (nome, tipo, created_at) VALUES (?, ?, ?)", [...cat, now]);
+  });
 }
 
 export function getDb() {
