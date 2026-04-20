@@ -1,223 +1,136 @@
 "use client";
-import { addEntidade, getEntidades, setActiveEntidade, updateEntidade } from '@/lib/entidadeDb';
-import { setActiveUsuario } from '@/lib/usuarioDb';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 
-export default function SelecaoEntidade() {
-  const [entidades, setEntidades] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingEntidade, setEditingEntidade] = useState(null);
-  const [novoNome, setNovoNome] = useState('');
-  const [isPessoal, setIsPessoal] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    async function load() {
-      const data = await getEntidades();
-      setEntidades(data);
-      setLoading(false);
-    }
-    load();
-  }, []);
-
-  const handleSelect = (id) => {
-    setActiveEntidade(id);
-    setActiveUsuario(null); // Clear active user for the new entity
-    window.dispatchEvent(new Event('app:usuarios-updated'));
-    router.push('/dashboard');
-  };
-
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    if (!novoNome) return;
-
-    const id = await addEntidade({
-      nome: novoNome,
-      is_contexto_pessoal: isPessoal
-    });
-
-    const updated = await getEntidades();
-    setEntidades(updated);
-    setIsModalOpen(false);
-    setNovoNome('');
-
-    // Opcional: Selecionar automaticamente a recém criada
-    handleSelect(id);
-  };
-
-  const handleEdit = (e, entidade) => {
-    e.stopPropagation();
-    setEditingEntidade(entidade);
-    setNovoNome(entidade.nome);
-    setIsPessoal(entidade.is_contexto_pessoal);
-    setIsEditModalOpen(true);
-  };
-
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    if (!novoNome || !editingEntidade) return;
-
-    await updateEntidade(editingEntidade.id, {
-      nome: novoNome,
-      is_contexto_pessoal: isPessoal
-    });
-
-    const updated = await getEntidades();
-    setEntidades(updated);
-    setIsEditModalOpen(false);
-    setEditingEntidade(null);
-    setNovoNome('');
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 py-12 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-      <div className="max-w-4xl w-full text-center mb-12">
-        <h1 className="text-4xl font-extrabold text-white tracking-tight sm:text-5xl mb-4">
-          Bem-vindo ao <span className="text-blue-400">Meu Orçamento AI</span>
-        </h1>
-        <p className="text-xl text-gray-300">
-          Selecione uma entidade para começar a gerenciar suas finanças.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-950 text-white selection:bg-blue-500/30">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden pt-20 pb-32 lg:pt-32 lg:pb-48">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-30">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px] animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600 rounded-full blur-[120px] animate-pulse delay-700"></div>
+        </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl w-full">
-        {entidades.map((entidade) => (
-          <div
-            key={entidade.id}
-            onClick={() => handleSelect(entidade.id)}
-            className="group relative bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:bg-opacity-20 border border-white border-opacity-10 hover:border-blue-500"
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-full mb-8 animate-fade-in">
+            <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-ping"></span>
+            <span className="text-blue-400 text-sm font-medium">Nova era na gestão financeira</span>
+          </div>
+          
+          <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-8 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
+            Assuma o controle total <br /> com <span className="text-blue-500">Inteligência Artificial</span>
+          </h1>
+          
+          <p className="max-w-2xl mx-auto text-xl text-gray-400 mb-12 leading-relaxed">
+            O Meu Orçamento AI transforma a maneira como você lida com dinheiro. 
+            Gestão pessoal e empresarial em um só lugar, potencializada por insights inteligentes.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link 
+              href="/selecao-entidade" 
+              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg transition-all shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95"
+            >
+              Começar Agora — É Grátis
+            </Link>
+            <a 
+              href="#features" 
+              className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-lg transition-all border border-white/10 hover:border-white/20"
+            >
+              Ver Funcionalidades
+            </a>
+          </div>
+
+          <div className="mt-20 relative max-w-5xl mx-auto">
+            <div className="absolute inset-0 bg-blue-500/20 blur-[100px] -z-10"></div>
+            <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-2xl">
+              <div className="bg-gray-950 rounded-2xl aspect-[16/9] flex items-center justify-center overflow-hidden border border-white/5">
+                <Image 
+                   src="/logo_branco.png" 
+                   alt="Preview do Dashboard" 
+                   width={400} 
+                   height={400} 
+                   className="opacity-20 grayscale"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <p className="text-2xl font-bold text-blue-500/50 uppercase tracking-[0.2em]">Dashboard Inteligente</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-24 bg-gray-900/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-3xl lg:text-5xl font-bold mb-4">Tudo o que você precisa</h2>
+            <p className="text-gray-400 text-lg">Funcionalidades pensadas para simplificar sua vida financeira.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="group p-8 rounded-3xl bg-white/5 border border-white/10 hover:border-blue-500/50 transition-all hover:bg-white/[0.07]">
+              <div className="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Insights de IA</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Análise automática dos seus gastos e rendas com sugestões personalizadas para economizar mais.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="group p-8 rounded-3xl bg-white/5 border border-white/10 hover:border-blue-500/50 transition-all hover:bg-white/[0.07]">
+              <div className="w-12 h-12 bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Multi-entidade</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Gerencie suas finanças pessoais (PF) e seus centros de custo empresariais (PJ) em fluxos separados.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="group p-8 rounded-3xl bg-white/5 border border-white/10 hover:border-blue-500/50 transition-all hover:bg-white/[0.07]">
+              <div className="w-12 h-12 bg-green-600/20 text-green-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3">Importação Inteligente</h3>
+              <p className="text-gray-400 leading-relaxed">
+                Importe seus extratos bancários via CSV e deixe que nossa IA categorize tudo automaticamente para você.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 border-t border-white/5">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h2 className="text-4xl font-bold mb-8">Pronto para transformar sua realidade financeira?</h2>
+          <Link 
+            href="/selecao-entidade" 
+            className="inline-block px-12 py-5 bg-white text-black hover:bg-gray-200 rounded-2xl font-black text-xl transition-all hover:scale-105 active:scale-95"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 rounded-lg ${entidade.is_contexto_pessoal ? 'bg-green-500' : 'bg-purple-500'} bg-opacity-20 text-white`}>
-                {entidade.is_contexto_pessoal ? (
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                ) : (
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => handleEdit(e, entidade)}
-                  className="p-2 rounded-lg bg-gray-800 bg-opacity-50 text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
-                  title="Editar Entidade"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
-                <span className={`text-xs font-bold px-2 py-1 rounded ${entidade.is_contexto_pessoal ? 'bg-green-900 text-green-300' : 'bg-purple-900 text-purple-300'}`}>
-                  {entidade.is_contexto_pessoal ? 'Pessoal' : 'Empresarial'}
-                </span>
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2">{entidade.nome}</h3>
-            <p className="text-gray-400 text-sm">Criado em {new Date(entidade.created_at).toLocaleDateString('pt-BR')}</p>
-
-            <div className="mt-6 flex items-center text-blue-400 font-semibold group-hover:translate-x-2 transition-transform duration-300">
-              Entrar
-              <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </div>
-          </div>
-        ))}
-
-        {/* Card Adicionar Novo */}
-        <div
-          onClick={() => { setNovoNome(''); setIsPessoal(true); setIsModalOpen(true); }}
-          className="group relative bg-transparent border-2 border-dashed border-gray-600 rounded-2xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:border-blue-500 flex flex-col items-center justify-center text-gray-500 hover:text-blue-400"
-        >
-          <div className="p-4 rounded-full bg-gray-800 bg-opacity-50 mb-4 transition-colors duration-300 group-hover:bg-blue-900 group-hover:bg-opacity-30">
-            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-          </div>
-          <span className="text-xl font-bold">Adicionar Entidade</span>
+            Começar Gratuitamente
+          </Link>
+          <p className="mt-6 text-gray-500">Sem cartões, sem complicação. 100% Local e Privado.</p>
         </div>
-      </div>
+      </section>
 
-      {/* Modal de Criação / Edição */}
-      {(isModalOpen || isEditModalOpen) && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-950 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => { setIsModalOpen(false); setIsEditModalOpen(false); }}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-            <div className="inline-block align-middle bg-gray-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-800">
-              <div className="px-6 pt-6 pb-4">
-                <h3 className="text-2xl font-bold text-white mb-4" id="modal-title">
-                  {isEditModalOpen ? 'Editar Entidade' : 'Nova Entidade'}
-                </h3>
-                <form onSubmit={isEditModalOpen ? handleUpdate : handleCreate}>
-                  <div className="mb-4">
-                    <label className="block text-gray-400 text-sm font-medium mb-2">Nome da Entidade</label>
-                    <input
-                      type="text"
-                      autoFocus
-                      value={novoNome}
-                      onChange={(e) => setNovoNome(e.target.value)}
-                      placeholder="Ex: Família Silva, Minha Empresa..."
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    />
-                  </div>
-
-                  <div className="mb-6">
-                    <label className="block text-gray-400 text-sm font-medium mb-2">Tipo de Contexto</label>
-                    <div className="flex p-1 bg-gray-800 rounded-xl border border-gray-700">
-                      <button
-                        type="button"
-                        onClick={() => setIsPessoal(true)}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${isPessoal ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                      >
-                        Pessoal
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsPessoal(false)}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${!isPessoal ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                      >
-                        Empresarial
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 mt-8">
-                    <button
-                      type="button"
-                      onClick={() => { setIsModalOpen(false); setIsEditModalOpen(false); }}
-                      className="flex-1 px-4 py-3 bg-gray-800 text-gray-300 rounded-xl font-bold hover:bg-gray-750 transition-all"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!novoNome}
-                      className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
-                    >
-                      {isEditModalOpen ? 'Salvar Alterações' : 'Criar e Entrar'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Footer */}
+      <footer className="py-12 border-t border-white/5 text-center text-gray-600 text-sm">
+        <p>&copy; {new Date().getFullYear()} Meu Orçamento AI. Todos os direitos reservados.</p>
+      </footer>
     </div>
   );
 }

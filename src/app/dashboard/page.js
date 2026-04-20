@@ -43,11 +43,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function loadData() {
+      setIsLoading(true);
       const entidade = await getActiveEntidade();
       if (!entidade) {
         router.push('/');
         return;
       }
+      
+      // Reset data before loading new entity data
+      setGastos([]);
+      setRendas([]);
       setEntidadeAtiva(entidade);
 
       const storedGastos = await getGastos();
@@ -495,8 +500,7 @@ export default function Dashboard() {
       </div>
 
       <div className="flex flex-wrap gap-4">
-        <Link href="/gastos" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">Gerenciar Gastos</Link>
-        <Link href="/rendas" className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-medium">Gerenciar Rendas</Link>
+        <Link href="/transacoes" className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition font-bold shadow-lg shadow-blue-500/20">Ver Todas as Transações</Link>
       </div>
 
       {/* Modal de Insights */}

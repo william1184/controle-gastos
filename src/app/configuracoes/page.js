@@ -137,31 +137,13 @@ export default function Configuracoes() {
         <p className="text-sm text-gray-500 mt-2">Deixe em branco para usar a chave padrão do servidor (se configurada).</p>
       </div>
 
-      {/* Card: Categorias de Gastos */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl">
-        <h2 className="text-xl font-semibold mb-4">Categorias de Gastos (Enviadas para IA)</h2>
-        <div className="flex gap-2 mb-4">
-          <input type="text" value={novoGasto} onChange={(e) => setNovoGasto(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addItemGasto()} placeholder="Nova categoria de gasto" className="flex-grow p-2 border border-gray-300 rounded" />
-          <button onClick={addItemGasto} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Adicionar</button>
-        </div>
-        <ul className="flex flex-wrap gap-2">
-          {categoriasGastos.map(cat => (
-            <li key={cat} className="bg-gray-200 px-3 py-1 rounded-full flex items-center gap-2">
-              {cat}
-              <button onClick={() => removeItemGasto(cat)} className="text-red-500 font-bold hover:text-red-700">&times;</button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Card: Categorias de Rendas */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl">
-        <h2 className="text-xl font-semibold mb-4">Categorias de Rendas</h2>
-        <div className="flex gap-2 mb-4">
-          <input type="text" value={novaRenda} onChange={(e) => setNovaRenda(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addItem(novaRenda, categoriasRendas, setCategoriasRendas, setNovaRenda)} placeholder="Nova categoria de renda" className="flex-grow p-2 border border-gray-300 rounded" />
-          <button onClick={() => addItem(novaRenda, categoriasRendas, setCategoriasRendas, setNovaRenda)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Adicionar</button>
-        </div>
-        <ul className="flex flex-wrap gap-2">{categoriasRendas.map(cat => (<li key={cat} className="bg-gray-200 px-3 py-1 rounded-full flex items-center gap-2">{cat} <button onClick={() => removeItem(cat, categoriasRendas, setCategoriasRendas)} className="text-red-500 font-bold hover:text-red-700">&times;</button></li>))}</ul>
+      {/* Card: Categorias (Link) */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-indigo-600">
+        <h2 className="text-xl font-semibold mb-2">Categorias</h2>
+        <p className="text-gray-600 mb-4 text-sm">Gerencie suas categorias de gastos e rendas para organizar melhor suas transações.</p>
+        <Link href="/categorias" className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg shadow-indigo-500/20">
+          <span>🗂️</span> Gerenciar Categorias
+        </Link>
       </div>
 
       {/* Card: Sincronismo Google Drive */}

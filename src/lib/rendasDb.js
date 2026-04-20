@@ -18,15 +18,19 @@ export async function getRendas(filters = {}) {
   await initDb();
   const db = getDb();
   
+  const activeEntidade = await getActiveEntidade();
+  const entidadeId = activeEntidade?.id || 0;
+
   let query = `
     SELECT t.*, c.nome as categoria_nome, co.nome as conta_nome 
     FROM transacao t
     LEFT JOIN categoria c ON t.categoria_id = c.id
     LEFT JOIN conta co ON t.conta_id = co.id
-    WHERE t.tipo = 'entrada'
+    LEFT JOIN usuario u ON t.usuario_id = u.id
+    WHERE t.tipo = 'entrada' AND u.entidade_id = ?
   `;
   
-  const params = [];
+  const params = [entidadeId];
   
   if (filters.categoria) {
     query += " AND c.nome = ?";

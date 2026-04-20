@@ -1,20 +1,13 @@
 "use client";
+import { useEffect, useState } from 'react';
 import { addGasto, getGastos } from '@/lib/gastosDb';
 import { addRenda, getRendas } from '@/lib/rendasDb';
 import { getActiveUsuario } from '@/lib/usuarioDb';
 import { getContas } from '@/lib/contaDb';
 import { getActiveEntidade } from '@/lib/entidadeDb';
 import { getConfiguracoes } from '@/lib/storeDb';
-import { useEffect, useState } from 'react';
 
-export default function ImportExport() {
-  const [gastos, setGastos] = useState([]);
-  const [rendas, setRendas] = useState([]);
-  const [categoriasGastos, setCategoriasGastos] = useState([]);
-  const [categoriasRendas, setCategoriasRendas] = useState([]);
-  const [perfis, setPerfis] = useState([]);
-
-  // Estados de Mapeamento de Extrato CSV
+export default function ImportadorCSV({ onImportComplete }) {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [csvHeaders, setCsvHeaders] = useState([]);
   const [csvLines, setCsvLines] = useState([]);
@@ -22,14 +15,11 @@ export default function ImportExport() {
   const [activeUsuario, setActiveUsuario] = useState(null);
   const [contas, setContas] = useState([]);
   const [selectedContaId, setSelectedContaId] = useState('');
+  const [categoriasGastos, setCategoriasGastos] = useState([]);
+  const [categoriasRendas, setCategoriasRendas] = useState([]);
 
   useEffect(() => {
     async function loadData() {
-      const storedGastos = await getGastos();
-      const storedRendas = await getRendas();
-      setGastos(storedGastos);
-      setRendas(storedRendas);
-
       const config = await getConfiguracoes();
       let catGastos = config.categoriasGastos || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
       if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
@@ -37,12 +27,6 @@ export default function ImportExport() {
       }
       setCategoriasGastos(catGastos);
       setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
-
-      let loadedPerfis = config.perfis || [];
-      if (loadedPerfis.length === 0) {
-        loadedPerfis = [{ id: 0, nome: 'Perfil Padrão', renda: 1200, dataNascimento: '1992-04-27' }];
-      }
-      setPerfis(loadedPerfis);
 
       const activeUser = await getActiveUsuario();
       setActiveUsuario(activeUser);
@@ -58,8 +42,6 @@ export default function ImportExport() {
     }
     loadData();
   }, []);
-
-
 
   const handleImportExtratoCSV = (event) => {
     const file = event.target.files[0];
@@ -101,30 +83,25 @@ export default function ImportExport() {
         const headersLower = headers.map(h => h.toLowerCase());
         const dataRows = lines.slice(1).map(l => parseLine(l));
 
-        // Guessing logic
         let dateIdx = headersLower.findIndex(h => h.includes('data') || h.includes('date'));
         let valIdx = headersLower.findIndex(h => h === 'valor' || h === 'amount' || h.includes('deb_cred') || h.includes('deb') || h.includes('cred') || h.includes('valor'));
         let descIdx = headersLower.findIndex(h => h.includes('descri') || h.includes('hist') || h.includes('detalhe') || h.includes('lançamento') || h.includes('estabelecimento'));
 
-        // If not found by header, try by content
         if (dateIdx === -1 || valIdx === -1) {
           const sampleRows = dataRows.slice(0, 10);
           for (let col = 0; col < headers.length; col++) {
             let matchesDate = 0;
             let matchesValue = 0;
-            
             sampleRows.forEach(row => {
               const val = (row[col] || '').trim();
               if (/^(\d{2})\/(\d{2})\/(\d{4})$/.test(val) || /^(\d{4})-(\d{2})-(\d{2})$/.test(val)) matchesDate++;
               if (/[0-9]/.test(val) && (val.includes(',') || val.includes('.')) && !val.includes('/')) matchesValue++;
             });
-
             if (dateIdx === -1 && matchesDate > sampleRows.length / 2) dateIdx = col;
             else if (valIdx === -1 && matchesValue > sampleRows.length / 2) valIdx = col;
           }
         }
 
-        // Descrição fallback: longest non-date/non-value column
         if (descIdx === -1) {
           let maxLen = -1;
           for (let col = 0; col < headers.length; col++) {
@@ -147,8 +124,8 @@ export default function ImportExport() {
         setIsCsvModalOpen(true);
         event.target.value = '';
       } catch (error) {
-        console.error('[ImportExport] Erro ao parsear CSV:', error);
-        alert('Ocorreu um erro ao processar o extrato. Verifique a formatação do arquivo.');
+        console.error('Erro ao parsear CSV:', error);
+        alert('Ocorreu um erro ao processar o extrato.');
       }
     };
     reader.readAsText(file);
@@ -163,7 +140,6 @@ export default function ImportExport() {
     const dateIdx = csvHeaders.indexOf(csvMapping.data);
     const valIdx = csvHeaders.indexOf(csvMapping.valor);
     const descIdx = csvHeaders.indexOf(csvMapping.descricao);
-
     const profileId = activeUsuario?.id || 0;
 
     let novosGastos = [];
@@ -186,14 +162,9 @@ export default function ImportExport() {
       if (s.includes('.') && s.includes(',')) {
         const lastDot = s.lastIndexOf('.');
         const lastComma = s.lastIndexOf(',');
-        if (lastComma > lastDot) {
-          s = s.replace(/\./g, '').replace(',', '.');
-        } else {
-          s = s.replace(/,/g, '');
-        }
-      } else if (s.includes(',')) {
-        s = s.replace(',', '.');
-      }
+        if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+        else s = s.replace(/,/g, '');
+      } else if (s.includes(',')) s = s.replace(',', '.');
       const num = parseFloat(s);
       return isNaN(num) ? null : num;
     };
@@ -241,20 +212,12 @@ export default function ImportExport() {
     }
 
     if (novosGastos.length > 0 || novasRendas.length > 0) {
-      for (const g of novosGastos) {
-        await addGasto(g);
-      }
-      for (const r of novasRendas) {
-        await addRenda(r);
-      }
-
-      const updatedGastos = await getGastos();
-      const updatedRendas = await getRendas();
-      setGastos(updatedGastos);
-      setRendas(updatedRendas);
-      alert(`Extrato importado com sucesso!\n\n${novosGastos.length} gastos adicionados.\n${novasRendas.length} rendas adicionadas.`);
+      for (const g of novosGastos) await addGasto(g);
+      for (const r of novasRendas) await addRenda(r);
+      alert(`Importado com sucesso!\n${novosGastos.length} gastos, ${novasRendas.length} rendas.`);
+      if (onImportComplete) onImportComplete();
     } else {
-      alert('Nenhum registro válido encontrado. Verifique o mapeamento das colunas.');
+      alert('Nenhum registro válido encontrado.');
     }
 
     setIsCsvModalOpen(false);
@@ -262,91 +225,71 @@ export default function ImportExport() {
     setCsvLines([]);
   };
 
-  const handleImportOfx = (event) => {
-    // Placeholder para a futura implementação do OFX
-    alert('A importação de arquivos .OFX será implementada em breve!');
-    event.target.value = '';
-  };
-
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">Importação e Exportação</h1>
-      <p className="text-gray-600 mb-8">Faça o backup dos seus dados ou importe transações do seu banco.</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-
-
-        {/* Card Importação Bancária */}
-        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h2 className="text-xl font-bold mb-4 text-indigo-600">Importar Extrato Bancário</h2>
-          <p className="text-sm text-gray-600 mb-6">Importe as transações do seu banco (Itaú, Nubank, Mercado Livre, etc) para categorizar automaticamente. Esses dados serão adicionados aos seus registros atuais.</p>
-
-          <div className="flex flex-col sm:flex-row gap-4">
-            <label className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-medium flex justify-center items-center gap-2 cursor-pointer">
-              <span>📄</span> Importar Extrato (.csv, .txt)
-              <input type="file" accept=".csv,.txt" onChange={handleImportExtratoCSV} className="hidden" />
-            </label>
-
-            <label className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-medium flex justify-center items-center gap-2 cursor-pointer">
-              <span>🏦</span> Importar Extrato (.ofx)
-              <input type="file" accept=".ofx" onChange={handleImportOfx} className="hidden" />
-            </label>
-          </div>
+    <div className="bg-white p-8 rounded-3xl border border-gray-200">
+      <div className="max-w-xl mx-auto text-center">
+        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
         </div>
-
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Importar Extrato Bancário</h2>
+        <p className="text-gray-500 mb-8">Arraste seu arquivo CSV ou TXT para categorizar suas transações automaticamente.</p>
+        
+        <label className="block w-full border-2 border-dashed border-gray-200 rounded-3xl p-12 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer group">
+          <span className="text-gray-400 group-hover:text-blue-600 font-bold">Clique para selecionar arquivo</span>
+          <input type="file" accept=".csv,.txt" onChange={handleImportExtratoCSV} className="hidden" />
+        </label>
       </div>
 
-      {/* Modal Mapeamento CSV */}
       {isCsvModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Mapear Colunas do Extrato</h2>
-            <p className="text-sm text-gray-600 mb-4">Selecione quais colunas do seu arquivo correspondem aos campos essenciais do sistema.</p>
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md border border-gray-100">
+            <h2 className="text-xl font-bold mb-2 text-gray-900">Mapear Colunas</h2>
+            <p className="text-sm text-gray-500 mb-6">Identifique as colunas de data, valor e descrição.</p>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data (Ex: DATA_MOVIMENTACAO) *</label>
-              <select value={csvMapping.data} onChange={e => setCsvMapping({ ...csvMapping, data: e.target.value })} className="w-full p-2 border border-gray-300 rounded bg-white">
-                <option value="">-- Selecione --</option>
-                {csvHeaders.map(h => <option key={`data-${h}`} value={h}>{h}</option>)}
-              </select>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Data *</label>
+                <select value={csvMapping.data} onChange={e => setCsvMapping({ ...csvMapping, data: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                  <option value="">-- Selecione --</option>
+                  {csvHeaders.map(h => <option key={`data-${h}`} value={h}>{h}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Valor *</label>
+                <select value={csvMapping.valor} onChange={e => setCsvMapping({ ...csvMapping, valor: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                  <option value="">-- Selecione --</option>
+                  {csvHeaders.map(h => <option key={`valor-${h}`} value={h}>{h}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Descrição</label>
+                <select value={csvMapping.descricao} onChange={e => setCsvMapping({ ...csvMapping, descricao: e.target.value })} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                  <option value="">-- Ignorar ou Selecionar --</option>
+                  {csvHeaders.map(h => <option key={`desc-${h}`} value={h}>{h}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Conta de Destino *</label>
+                <select 
+                  value={selectedContaId} 
+                  onChange={e => setSelectedContaId(e.target.value)} 
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  required
+                >
+                  <option value="">-- Selecione --</option>
+                  {contas.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.tipo})</option>)}
+                </select>
+              </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor (Ex: DEB_CRED / VALOR) *</label>
-              <select value={csvMapping.valor} onChange={e => setCsvMapping({ ...csvMapping, valor: e.target.value })} className="w-full p-2 border border-gray-300 rounded bg-white">
-                <option value="">-- Selecione --</option>
-                {csvHeaders.map(h => <option key={`valor-${h}`} value={h}>{h}</option>)}
-              </select>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição (Opcional)</label>
-              <select value={csvMapping.descricao} onChange={e => setCsvMapping({ ...csvMapping, descricao: e.target.value })} className="w-full p-2 border border-gray-300 rounded bg-white">
-                <option value="">-- Ignorar ou Selecionar --</option>
-                {csvHeaders.map(h => <option key={`desc-${h}`} value={h}>{h}</option>)}
-              </select>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Conta de Destino *</label>
-              <select 
-                value={selectedContaId} 
-                onChange={e => setSelectedContaId(e.target.value)} 
-                className="w-full p-2 border border-gray-300 rounded bg-white"
-                required
-              >
-                <option value="">-- Selecione uma Conta --</option>
-                {contas.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.tipo})</option>)}
-              </select>
-              {contas.length === 0 && (
-                <p className="text-xs text-red-500 mt-1">Você precisa cadastrar uma conta primeiro!</p>
-              )}
-            </div>
-
-            <div className="flex gap-4">
-              <button onClick={handleConfirmMapping} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition w-full font-medium">Importar</button>
-              <button onClick={() => { setIsCsvModalOpen(false); setCsvHeaders([]); setCsvLines([]); }} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition w-full font-medium">Cancelar</button>
+            <div className="flex gap-3 mt-8">
+              <button onClick={() => { setIsCsvModalOpen(false); setCsvHeaders([]); setCsvLines([]); }} className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all">Cancelar</button>
+              <button onClick={handleConfirmMapping} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">Importar</button>
             </div>
           </div>
         </div>

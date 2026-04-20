@@ -27,6 +27,35 @@ export async function setConfiguracoes(config) {
   await setStoreItem('configuracoes', config);
 }
 
+// Categorias
+export async function getCategoriasGastos() {
+  const config = await getConfiguracoes();
+  let cats = config.categoriasGastos || ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Outros'];
+  if (cats.length > 0 && typeof cats[0] === 'object') {
+    cats = cats.map(c => c.nome);
+  }
+  return cats;
+}
+
+export async function setCategoriasGastos(categorias) {
+  const config = await getConfiguracoes();
+  await setConfiguracoes({ ...config, categoriasGastos: categorias });
+}
+
+export async function getCategoriasRendas() {
+  const config = await getConfiguracoes();
+  let cats = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
+  if (cats.length > 0 && typeof cats[0] === 'object') {
+    cats = cats.map(c => c.nome);
+  }
+  return cats;
+}
+
+export async function setCategoriasRendas(categorias) {
+  const config = await getConfiguracoes();
+  await setConfiguracoes({ ...config, categoriasRendas: categorias });
+}
+
 export async function getHistoricoInsights() {
   const insights = await getStoreItem('historicoInsights');
   return insights || [];
