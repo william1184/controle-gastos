@@ -1,9 +1,10 @@
 "use client";
-import { addGasto } from '@/lib/gastosDb';
 import { getCategorias } from '@/lib/categoriaDb';
 import { getContas } from '@/lib/contaDb';
-import { getUsuarios } from '@/lib/usuarioDb';
 import { getActiveEntidade } from '@/lib/entidadeDb';
+import { addGasto } from '@/lib/gastosDb';
+import { getTags } from '@/lib/tagDb';
+import { getUsuarios } from '@/lib/usuarioDb';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -17,11 +18,13 @@ export default function NovaGasto() {
   const [tipoCusto, setTipoCusto] = useState('Variável');
   const [contaId, setContaId] = useState('');
   const [usuarioId, setUsuarioId] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
 
   const [categorias, setCategorias] = useState([]);
   const [contas, setContas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
-  
+  const [availableTags, setAvailableTags] = useState([]);
+
   // Recorrência
   const [isRecorrente, setIsRecorrente] = useState(false);
   const [frequencia, setFrequencia] = useState('mensal');
@@ -36,8 +39,12 @@ export default function NovaGasto() {
     setData(hoje);
 
     async function loadResources() {
-      const cats = await getCategorias('saida');
+      const [cats, tags] = await Promise.all([
+        getCategorias('saida'),
+        getTags()
+      ]);
       setCategorias(cats);
+      setAvailableTags(tags);
       if (cats.length > 0) setCategoria(cats[0].nome);
 
       const ent = await getActiveEntidade();
@@ -78,22 +85,23 @@ export default function NovaGasto() {
       return;
     }
 
-    await addGasto({ 
-      data, 
-      apelido, 
-      categoria, 
-      total, 
-      tipoCusto, 
-      contaId, 
-      usuarioId, 
+    await addGasto({
+      data,
+      apelido,
+      categoria,
+      total,
+      tipoCusto,
+      contaId,
+      usuarioId,
+      tagIds: selectedTagIds,
       produtos: mode === 'full' ? produtos : [],
       recorrencia: isRecorrente ? { frequencia } : null
     });
-    router.push('/gastos');
+    router.push('/transacoes?tipo=saida');
   };
 
   const handleBack = () => {
-    router.push('/gastos');
+    router.push('/transacoes?tipo=saida');
   };
 
   const handleUpload = async (e) => {
@@ -109,13 +117,13 @@ export default function NovaGasto() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-800">Novo Gasto</h1>
           <div className="flex bg-white rounded-xl p-1 shadow-sm border border-gray-200">
-            <button 
+            <button
               onClick={() => setMode('quick')}
               className={`px-6 py-2 rounded-lg font-bold transition-all ${mode === 'quick' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
             >
               Rápido
             </button>
-            <button 
+            <button
               onClick={() => setMode('full')}
               className={`px-6 py-2 rounded-lg font-bold transition-all ${mode === 'full' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
             >
@@ -186,6 +194,32 @@ export default function NovaGasto() {
                 {usuarios.map(usr => <option key={usr.id} value={usr.id}>{usr.nome}</option>)}
               </select>
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Tags</label>
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map(tag => (
+                  <button
+                    key={tag.id}
+                    onClick={() => {
+                      if (selectedTagIds.includes(tag.id)) {
+                        setSelectedTagIds(selectedTagIds.filter(id => id !== tag.id));
+                      } else {
+                        setSelectedTagIds([...selectedTagIds, tag.id]);
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${selectedTagIds.includes(tag.id)
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
+                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                      }`}
+                  >
+                    {tag.nome}
+                  </button>
+                ))}
+                {availableTags.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">Nenhuma tag cadastrada. Vá em "Tags" no menu para criar.</p>
+                )}
+              </div>
+            </div>
             {mode === 'quick' && (
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Valor Total (R$) *</label>
@@ -210,7 +244,7 @@ export default function NovaGasto() {
               />
               <span className="text-sm font-bold text-gray-700 group-hover:text-blue-600 transition-colors">Esta é uma despesa recorrente</span>
             </label>
-            
+
             {isRecorrente && (
               <div className="mt-4 animate-fadeIn">
                 <label className="block text-xs font-black text-gray-400 uppercase mb-2">Frequência do Gasto</label>
@@ -348,9 +382,8 @@ export default function NovaGasto() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full p-4 text-white rounded-2xl font-black text-lg shadow-lg ${
-                  loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-200'
-                }`}
+                className={`w-full p-4 text-white rounded-2xl font-black text-lg shadow-lg ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-200'
+                  }`}
               >
                 {loading ? 'Processando...' : 'Processar Agora'}
               </button>

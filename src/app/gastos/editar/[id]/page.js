@@ -1,7 +1,9 @@
 "use client";
 import { getGastoById, updateGasto } from '@/lib/gastosDb';
 import { getContas } from '@/lib/contaDb';
-import { getConfiguracoes } from '@/lib/storeDb';
+import { getCategorias } from '@/lib/categoriaDb';
+import { getActiveEntidade } from '@/lib/entidadeDb';
+import { getUsuarios } from '@/lib/usuarioDb';
 import { getRecorrenciaById } from '@/lib/recorrenciaDb';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -12,11 +14,11 @@ export default function EditarGasto() {
   const [apelido, setApelido] = useState('');
   const [categoria, setCategoria] = useState('');
   const [tipoCusto, setTipoCusto] = useState('Variável');
-  const [perfilId, setPerfilId] = useState('');
+  const [usuarioId, setUsuarioId] = useState('');
   const [contaId, setContaId] = useState('');
   const [categoriasSalvas, setCategoriasSalvas] = useState([]);
   const [contas, setContas] = useState([]);
-  const [perfis, setPerfis] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [total, setTotal] = useState(0);
 
   // Recorrência
@@ -28,22 +30,22 @@ export default function EditarGasto() {
 
   useEffect(() => {
     const loadData = async () => {
-      const config = await getConfiguracoes();
-      
-      let categorias = config.categoriasGastos || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
-      if (categorias.length > 0 && typeof categorias[0] === 'object') {
-        categorias = categorias.map(c => c.nome);
-      }
-      setCategoriasSalvas(categorias);
+      const cats = await getCategorias('saida');
+      setCategoriasSalvas(cats);
 
       const loadedContas = await getContas();
       setContas(loadedContas);
-
-      let loadedPerfis = config.perfis || [];
-      if (loadedPerfis.length === 0) {
-        loadedPerfis = [{ id: 0, nome: 'Perfil Padrão', renda: 1200, dataNascimento: '1992-04-27' }];
+      
+      let loadedUsuarios = [];
+      const ent = await getActiveEntidade();
+      if (ent) {
+        loadedUsuarios = await getUsuarios(ent.id);
       }
-      setPerfis(loadedPerfis);
+      
+      if (loadedUsuarios.length === 0) {
+        loadedUsuarios = [{ id: 0, nome: 'Usuário Padrão' }];
+      }
+      setUsuarios(loadedUsuarios);
 
       if (id) {
         const gasto = await getGastoById(Number(id));
@@ -51,8 +53,8 @@ export default function EditarGasto() {
           setProdutos(gasto.produtos || []);
           setData(gasto.data);
           setApelido(gasto.apelido || '');
-          setCategoria(gasto.categoria || categorias[0] || 'Outros');
-          setPerfilId(gasto.perfilId !== undefined && gasto.perfilId !== null ? gasto.perfilId : loadedPerfis[0].id);
+          setCategoria(gasto.categoria || (cats.length > 0 ? cats[0].nome : 'Outros'));
+          setUsuarioId(gasto.usuarioId !== undefined && gasto.usuarioId !== null ? gasto.usuarioId : loadedUsuarios[0].id);
           setTipoCusto(gasto.tipoCusto || 'Variável');
           setTotal(gasto.total);
           setContaId(gasto.contaId || (loadedContas.length > 0 ? loadedContas[0].id : ''));
@@ -88,7 +90,7 @@ export default function EditarGasto() {
   };
 
   const handleSave = async () => {
-    if (!data || !categoria || total < 0 || perfilId === '' || !contaId) {
+    if (!data || !categoria || total < 0 || usuarioId === '' || !contaId) {
       alert('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
@@ -99,7 +101,7 @@ export default function EditarGasto() {
       categoria, 
       tipoCusto, 
       total, 
-      perfilId, 
+      usuarioId, 
       contaId: Number(contaId),
       produtos 
     };
@@ -109,11 +111,11 @@ export default function EditarGasto() {
     }
 
     await updateGasto(Number(id), gastoData);
-    router.push('/gastos');
+    router.push('/transacoes?tipo=saida');
   };
 
   const handleBack = () => {
-    router.push('/gastos');
+    router.push('/transacoes?tipo=saida');
   };
 
   return (
@@ -140,8 +142,8 @@ export default function EditarGasto() {
                 onChange={(e) => setCategoria(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               >
-                {categoriasSalvas.map((cat, idx) => (
-                  <option key={idx} value={cat}>{cat}</option>
+                {categoriasSalvas.map((cat) => (
+                  <option key={cat.id} value={cat.nome}>{cat.nome}</option>
                 ))}
               </select>
             </div>
@@ -158,14 +160,14 @@ export default function EditarGasto() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Perfil</label>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Responsável</label>
               <select
-                value={perfilId}
-                onChange={(e) => setPerfilId(Number(e.target.value))}
+                value={usuarioId}
+                onChange={(e) => setUsuarioId(Number(e.target.value))}
                 className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
               >
-                {perfis.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>{u.nome}</option>
                 ))}
               </select>
             </div>

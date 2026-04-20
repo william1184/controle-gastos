@@ -23,3 +23,17 @@ export async function addCategoria(categoria) {
     VALUES (?, ?, ?)
   `, [categoria.nome, categoria.tipo, now]);
 }
+
+export async function updateCategoria(id, nome) {
+  await initDb();
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.run("UPDATE categoria SET nome = ?, updated_at = ? WHERE id = ?", [nome, now, id]);
+}
+
+export async function deleteCategoria(id) {
+  await initDb();
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.run("UPDATE categoria SET deleted_at = ? WHERE id = ?", [now, id]);
+}

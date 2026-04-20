@@ -66,7 +66,7 @@ export async function getRendas(filters = {}) {
       descricao: obj.descricao,
       categoria: obj.categoria_nome || 'Outros',
       valor: obj.valor,
-      perfilId: obj.usuario_id,
+      usuarioId: obj.usuario_id,
       contaId: obj.conta_id,
       contaNome: obj.conta_nome || '-',
       recorrenciaId: obj.recorrencia_id
@@ -96,7 +96,7 @@ export async function getRendaById(id) {
     descricao: obj.descricao,
     categoria: obj.categoria_nome || 'Outros',
     valor: obj.valor,
-    perfilId: obj.usuario_id,
+    usuarioId: obj.usuario_id,
     contaId: obj.conta_id,
     contaNome: obj.conta_nome,
     recorrenciaId: obj.recorrencia_id
@@ -114,7 +114,7 @@ export async function addRenda(renda) {
   const entidadeId = activeEntidade?.id || 1;
   
   const activeUser = await getActiveUsuario();
-  let usuarioId = activeUser?.id;
+  let usuarioId = renda.usuarioId || activeUser?.id;
 
   if (!usuarioId) {
     const userRes = db.exec("SELECT id FROM usuario WHERE entidade_id = ? LIMIT 1", [entidadeId]);
@@ -141,7 +141,21 @@ export async function addRenda(renda) {
   `, [renda.data, renda.descricao, renda.valor, categoriaId, renda.contaId, usuarioId, recorrenciaId, now]);
   
   const res = db.exec("SELECT last_insert_rowid()");
-  return res[0].values[0][0];
+  const transacaoId = res[0].values[0][0];
+
+  // Default description if empty
+  if (!renda.descricao) {
+    const defaultDesc = `Transação entrada ${transacaoId}`;
+    db.run("UPDATE transacao SET descricao = ? WHERE id = ?", [defaultDesc, transacaoId]);
+  }
+
+  // Tags
+  if (renda.tagIds && renda.tagIds.length > 0) {
+    const { linkTagsToTransacao } = await import('./tagDb');
+    await linkTagsToTransacao(transacaoId, renda.tagIds);
+  }
+
+  return transacaoId;
 }
 
 export async function updateRenda(id, renda) {
@@ -177,9 +191,23 @@ export async function updateRenda(id, renda) {
 
   db.run(`
     UPDATE transacao 
-    SET data = ?, descricao = ?, valor = ?, categoria_id = ?, conta_id = ?, recorrencia_id = ?, updated_at = ?
+    SET data = ?, descricao = ?, valor = ?, categoria_id = ?, conta_id = ?, usuario_id = ?, recorrencia_id = ?, updated_at = ?
     WHERE id = ? AND tipo = 'entrada'
-  `, [renda.data, renda.descricao, renda.valor, categoriaId, renda.contaId, recorrenciaId, now, id]);
+  `, [renda.data, renda.descricao, renda.valor, categoriaId, renda.contaId, renda.usuarioId || existing.usuarioId, recorrenciaId, now, id]);
+}
+
+export async function updateRendaCategory(id, categoryName) {
+  await initDb();
+  const db = getDb();
+  
+  const categoriaId = await getCategoryIdByName(db, categoryName, 'entrada');
+  const now = new Date().toISOString();
+  
+  db.run(`
+    UPDATE transacao 
+    SET categoria_id = ?, updated_at = ?
+    WHERE id = ? AND tipo = 'entrada'
+  `, [categoriaId, now, id]);
 }
 
 export async function deleteRenda(id) {

@@ -1,6 +1,8 @@
 import { initDb, getDb } from '@/lib/db';
 import { addRenda, getRendas, clearRendas, getRendaById, updateRenda, deleteRenda } from '@/lib/rendasDb';
 import { addConta, getContas } from '@/lib/contaDb';
+import { setActiveEntidade } from '@/lib/entidadeDb';
+import { setActiveUsuario } from '@/lib/usuarioDb';
 
 describe('rendasDb Operations', () => {
   let defaultAccountId;
@@ -11,10 +13,16 @@ describe('rendasDb Operations', () => {
     const db = getDb();
     const now = new Date().toISOString();
     
+    // Ensure active entity and user are set
+    setActiveEntidade(1);
+    setActiveUsuario(1);
+
     // Ensure categories exist for tests
     try {
-      db.run("INSERT INTO categoria (nome, tipo, created_at) VALUES ('Freelance', 'entrada', ?)", [now]);
-      db.run("INSERT INTO categoria (nome, tipo, created_at) VALUES ('Investimentos', 'entrada', ?)", [now]);
+      db.run("INSERT OR IGNORE INTO categoria (nome, tipo, created_at) VALUES ('Freelance', 'entrada', ?)", [now]);
+      db.run("INSERT OR IGNORE INTO categoria (nome, tipo, created_at) VALUES ('Investimentos', 'entrada', ?)", [now]);
+      db.run("INSERT OR IGNORE INTO categoria (nome, tipo, created_at) VALUES ('Salário', 'entrada', ?)", [now]);
+      db.run("INSERT OR IGNORE INTO categoria (nome, tipo, created_at) VALUES ('Rendimentos', 'entrada', ?)", [now]);
     } catch (e) {
       // Might already exist
     }
@@ -44,7 +52,7 @@ describe('rendasDb Operations', () => {
       contaId: defaultAccountId
     };
 
-    const id = await addRenda(novaRenda);
+    const id = await addRenda({ ...novaRenda, usuarioId: 1 });
     expect(id).toBeDefined();
 
     const rendas = await getRendas();
@@ -55,8 +63,8 @@ describe('rendasDb Operations', () => {
   });
 
   it('deve filtrar rendas por categoria', async () => {
-    await addRenda({ data: '2026-04-20', descricao: 'Job 1', categoria: 'Freelance', valor: 100, contaId: defaultAccountId });
-    await addRenda({ data: '2026-04-21', descricao: 'Job 2', categoria: 'Investimentos', valor: 200, contaId: defaultAccountId });
+    await addRenda({ data: '2026-04-20', descricao: 'Job 1', categoria: 'Freelance', valor: 100, contaId: defaultAccountId, usuarioId: 1 });
+    await addRenda({ data: '2026-04-21', descricao: 'Job 2', categoria: 'Investimentos', valor: 200, contaId: defaultAccountId, usuarioId: 1 });
 
     const filtradas = await getRendas({ categoria: 'Freelance' });
     expect(filtradas).toHaveLength(1);
@@ -69,8 +77,8 @@ describe('rendasDb Operations', () => {
     const contas = await getContas();
     const outraContaId = contas.find(c => c.nome === 'Outra Conta').id;
 
-    await addRenda({ data: '2026-04-20', descricao: 'Renda 1', categoria: 'Salário', valor: 100, contaId: defaultAccountId });
-    await addRenda({ data: '2026-04-21', descricao: 'Renda 2', categoria: 'Salário', valor: 200, contaId: outraContaId });
+    await addRenda({ data: '2026-04-20', descricao: 'Renda 1', categoria: 'Salário', valor: 100, contaId: defaultAccountId, usuarioId: 1 });
+    await addRenda({ data: '2026-04-21', descricao: 'Renda 2', categoria: 'Salário', valor: 200, contaId: outraContaId, usuarioId: 1 });
 
     const filtradas = await getRendas({ accountId: outraContaId });
     expect(filtradas).toHaveLength(1);
@@ -78,9 +86,9 @@ describe('rendasDb Operations', () => {
   });
 
   it('deve filtrar rendas por intervalo de data', async () => {
-    await addRenda({ data: '2026-04-01', descricao: 'Renda Antiga', categoria: 'Salário', valor: 100, contaId: defaultAccountId });
-    await addRenda({ data: '2026-04-15', descricao: 'Renda Meio', categoria: 'Salário', valor: 100, contaId: defaultAccountId });
-    await addRenda({ data: '2026-04-30', descricao: 'Renda Nova', categoria: 'Salário', valor: 100, contaId: defaultAccountId });
+    await addRenda({ data: '2026-04-01', descricao: 'Renda Antiga', categoria: 'Salário', valor: 100, contaId: defaultAccountId, usuarioId: 1 });
+    await addRenda({ data: '2026-04-15', descricao: 'Renda Meio', categoria: 'Salário', valor: 100, contaId: defaultAccountId, usuarioId: 1 });
+    await addRenda({ data: '2026-04-30', descricao: 'Renda Nova', categoria: 'Salário', valor: 100, contaId: defaultAccountId, usuarioId: 1 });
 
     const filtradas = await getRendas({ startDate: '2026-04-10', endDate: '2026-04-20' });
     expect(filtradas).toHaveLength(1);
@@ -97,14 +105,14 @@ describe('rendasDb Operations', () => {
       recorrencia: { frequencia: 'mensal' }
     };
 
-    const id = await addRenda(novaRenda);
+    const id = await addRenda({ ...novaRenda, usuarioId: 1 });
     const renda = await getRendaById(id);
 
     expect(renda.recorrenciaId).not.toBeNull();
   });
 
   it('deve atualizar uma renda e sua conta', async () => {
-    const id = await addRenda({ data: '2026-04-20', descricao: 'Original', categoria: 'Salário', valor: 100, contaId: defaultAccountId });
+    const id = await addRenda({ data: '2026-04-20', descricao: 'Original', categoria: 'Salário', valor: 100, contaId: defaultAccountId, usuarioId: 1 });
     
     await addConta({ nome: 'Conta Update', tipo: 'banco', saldo_inicial: 0, entidade_id: 1 });
     const contas = await getContas();

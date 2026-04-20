@@ -44,3 +44,38 @@ export async function deleteRecorrencia(id) {
   const now = new Date().toISOString();
   db.run("UPDATE recorrencia SET deleted_at = ? WHERE id = ?", [now, id]);
 }
+
+export async function getRecorrencias() {
+  await initDb();
+  const db = getDb();
+  const { getActiveEntidade } = await import('./entidadeDb');
+  const activeEntidade = await getActiveEntidade();
+  const entidadeId = activeEntidade?.id || 0;
+
+  // We filter recurrences that are linked to transactions belonging to the current entity
+  const query = `
+    SELECT r.*, t.data as data_origem, t.id as transacao_id
+    FROM recorrencia r
+    JOIN transacao t ON t.recorrencia_id = r.id
+    JOIN usuario u ON t.usuario_id = u.id
+    WHERE u.entidade_id = ? AND r.deleted_at IS NULL
+    ORDER BY r.proxima_execucao ASC
+  `;
+
+  const res = db.exec(query, [entidadeId]);
+  
+  if (!res[0]) return [];
+  
+  return res[0].values.map(row => {
+    const obj = {};
+    res[0].columns.forEach((col, i) => obj[col] = row[i]);
+    return {
+      id: obj.id,
+      descricao: obj.descricao,
+      frequencia: obj.frequencia,
+      proximaExecucao: obj.proxima_execucao,
+      dataOrigem: obj.data_origem,
+      transacaoId: obj.transacao_id
+    };
+  });
+}

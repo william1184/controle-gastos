@@ -1,8 +1,10 @@
 "use client";
 import { getRendaById, updateRenda } from '@/lib/rendasDb';
 import { getContas } from '@/lib/contaDb';
-import { getConfiguracoes } from '@/lib/storeDb';
+import { getCategorias } from '@/lib/categoriaDb';
 import { getRecorrenciaById } from '@/lib/recorrenciaDb';
+import { getActiveEntidade } from '@/lib/entidadeDb';
+import { getUsuarios } from '@/lib/usuarioDb';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
@@ -12,8 +14,10 @@ function FormEditarRenda() {
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState('');
   const [contaId, setContaId] = useState('');
+  const [usuarioId, setUsuarioId] = useState('');
   const [categoriasSalvas, setCategoriasSalvas] = useState([]);
   const [contas, setContas] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   
   // Recorrência
   const [isRecorrente, setIsRecorrente] = useState(false);
@@ -25,21 +29,28 @@ function FormEditarRenda() {
 
   useEffect(() => {
     async function loadData() {
-      const config = await getConfiguracoes();
-      const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
-      setCategoriasSalvas(categorias);
+      const cats = await getCategorias('entrada');
+      setCategoriasSalvas(cats);
 
       const loadedContas = await getContas();
       setContas(loadedContas);
+
+      let loadedUsuarios = [];
+      const ent = await getActiveEntidade();
+      if (ent) {
+        loadedUsuarios = await getUsuarios(ent.id);
+        setUsuarios(loadedUsuarios);
+      }
 
       if (id !== null) {
         const renda = await getRendaById(Number(id));
         if (renda) {
           setData(renda.data);
           setDescricao(renda.descricao);
-          setCategoria(renda.categoria || categorias[0] || 'Outros');
+          setCategoria(renda.categoria || (cats.length > 0 ? cats[0].nome : 'Outros'));
           setValor(renda.valor);
           setContaId(renda.contaId || (loadedContas.length > 0 ? loadedContas[0].id : ''));
+          setUsuarioId(renda.usuarioId || (loadedUsuarios.length > 0 ? loadedUsuarios[0].id : ''));
           
           if (renda.recorrenciaId) {
             const recorrencia = await getRecorrenciaById(renda.recorrenciaId);
@@ -55,8 +66,8 @@ function FormEditarRenda() {
   }, [id]);
 
   const handleSave = async () => {
-    if (!data || !categoria || !valor || parseFloat(valor) <= 0 || !contaId) {
-      alert('Por favor, preencha a data, a categoria, a conta e um valor maior que zero.');
+    if (!data || !categoria || !valor || parseFloat(valor) <= 0 || !contaId || !usuarioId) {
+      alert('Por favor, preencha a data, a categoria, a conta, o usuário e um valor maior que zero.');
       return;
     }
 
@@ -67,7 +78,8 @@ function FormEditarRenda() {
       descricao, 
       categoria, 
       valor: parseFloat(valor), 
-      contaId: Number(contaId) 
+      contaId: Number(contaId),
+      usuarioId: Number(usuarioId)
     };
 
     if (isRecorrente) {
@@ -75,11 +87,11 @@ function FormEditarRenda() {
     }
 
     await updateRenda(Number(id), rendaData);
-    router.push('/rendas');
+    router.push('/transacoes?tipo=entrada');
   };
 
   const handleBack = () => {
-    router.push('/rendas');
+    router.push('/transacoes?tipo=entrada');
   };
 
   return (
@@ -106,8 +118,8 @@ function FormEditarRenda() {
               onChange={(e) => setCategoria(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500 bg-white transition"
             >
-              {categoriasSalvas.map((cat, idx) => (
-                <option key={idx} value={cat}>{cat}</option>
+               {categoriasSalvas.map((cat) => (
+                <option key={cat.id} value={cat.nome}>{cat.nome}</option>
               ))}
             </select>
           </div>
@@ -123,6 +135,19 @@ function FormEditarRenda() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Responsável</label>
+          <select
+            value={usuarioId}
+            onChange={(e) => setUsuarioId(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500 bg-white transition"
+          >
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>{u.nome}</option>
+            ))}
+          </select>
         </div>
         
         <div className="grid grid-cols-2 gap-4 mb-4">

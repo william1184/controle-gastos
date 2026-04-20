@@ -27,7 +27,7 @@ export default function ConsultaCompra() {
   }, [id]);
 
   const handleBack = () => {
-    router.push('/gastos'); // Redireciona para a página /gastos
+    router.push('/transacoes?tipo=saida'); // Redireciona para a página unificada
   };
 
   return (

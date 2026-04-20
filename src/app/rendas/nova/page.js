@@ -1,9 +1,12 @@
 "use client";
 import { addRenda } from '@/lib/rendasDb';
 import { getContas } from '@/lib/contaDb';
-import { getConfiguracoes } from '@/lib/storeDb';
+import { getCategorias } from '@/lib/categoriaDb';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { getTags } from '@/lib/tagDb';
+import { getActiveEntidade } from '@/lib/entidadeDb';
+import { getUsuarios } from '@/lib/usuarioDb';
 
 export default function NovaRenda() {
   const [data, setData] = useState('');
@@ -11,8 +14,12 @@ export default function NovaRenda() {
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState('');
   const [contaId, setContaId] = useState('');
+  const [usuarioId, setUsuarioId] = useState('');
   const [categoriasSalvas, setCategoriasSalvas] = useState([]);
   const [contas, setContas] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [selectedTagIds, setSelectedTagIds] = useState([]);
   
   // Recorrência
   const [isRecorrente, setIsRecorrente] = useState(false);
@@ -25,23 +32,34 @@ export default function NovaRenda() {
     setData(hoje);
 
     const loadData = async () => {
-      const config = await getConfiguracoes();
-      const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
-      setCategoriasSalvas(categorias);
-      setCategoria(categorias[0] || 'Outros');
-
-      const loadedContas = await getContas();
+      const [cats, tags, loadedContas] = await Promise.all([
+        getCategorias('entrada'),
+        getTags(),
+        getContas()
+      ]);
+      setCategoriasSalvas(cats);
+      if (cats.length > 0) {
+        setCategoria(cats[0].nome);
+      }
+      setAvailableTags(tags);
       setContas(loadedContas);
       if (loadedContas.length > 0) {
         setContaId(loadedContas[0].id);
+      }
+
+      const ent = await getActiveEntidade();
+      if (ent) {
+        const usrs = await getUsuarios(ent.id);
+        setUsuarios(usrs);
+        if (usrs.length > 0) setUsuarioId(usrs[0].id);
       }
     };
     loadData();
   }, []);
 
   const handleSave = async () => {
-    if (!data || !categoria || !valor || parseFloat(valor) <= 0 || !contaId) {
-      alert('Por favor, preencha a data, a categoria, a conta e um valor maior que zero.');
+    if (!data || !categoria || !valor || parseFloat(valor) <= 0 || !contaId || !usuarioId) {
+      alert('Por favor, preencha a data, a categoria, a conta, o usuário e um valor maior que zero.');
       return;
     }
 
@@ -50,7 +68,9 @@ export default function NovaRenda() {
       descricao, 
       categoria, 
       valor: parseFloat(valor), 
-      contaId: Number(contaId) 
+      contaId: Number(contaId),
+      usuarioId: Number(usuarioId),
+      tagIds: selectedTagIds
     };
 
     if (isRecorrente) {
@@ -58,11 +78,11 @@ export default function NovaRenda() {
     }
 
     await addRenda(rendaData);
-    router.push('/rendas');
+    router.push('/transacoes?tipo=entrada');
   };
 
   const handleBack = () => {
-    router.push('/rendas');
+    router.push('/transacoes?tipo=entrada');
   };
 
   return (
@@ -89,8 +109,8 @@ export default function NovaRenda() {
               onChange={(e) => setCategoria(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500 bg-white transition"
             >
-              {categoriasSalvas.map((cat, idx) => (
-                <option key={idx} value={cat}>{cat}</option>
+              {categoriasSalvas.map((cat) => (
+                <option key={cat.id} value={cat.nome}>{cat.nome}</option>
               ))}
             </select>
           </div>
@@ -107,7 +127,20 @@ export default function NovaRenda() {
             </select>
           </div>
         </div>
-        
+
+        <div className="mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Responsável</label>
+          <select
+            value={usuarioId}
+            onChange={(e) => setUsuarioId(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500 bg-white transition"
+          >
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.id}>{u.nome}</option>
+            ))}
+          </select>
+        </div>
+
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Data</label>
@@ -129,6 +162,34 @@ export default function NovaRenda() {
               placeholder="0.00"
               className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500 font-bold text-green-700 transition"
             />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Tags</label>
+          <div className="flex flex-wrap gap-2">
+            {availableTags.map(tag => (
+              <button
+                key={tag.id}
+                onClick={() => {
+                  if (selectedTagIds.includes(tag.id)) {
+                    setSelectedTagIds(selectedTagIds.filter(id => id !== tag.id));
+                  } else {
+                    setSelectedTagIds([...selectedTagIds, tag.id]);
+                  }
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${
+                  selectedTagIds.includes(tag.id)
+                    ? 'bg-green-600 text-white border-green-600'
+                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {tag.nome}
+              </button>
+            ))}
+            {availableTags.length === 0 && (
+              <p className="text-[10px] text-gray-400 italic">Nenhuma tag cadastrada.</p>
+            )}
           </div>
         </div>
 

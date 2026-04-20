@@ -87,7 +87,10 @@ function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuO
                 ))}
                 <div className="border-t border-gray-100 mt-2 pt-2">
                   <Link href="/usuarios" onClick={() => setIsUserMenuOpen(false)} className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-2 font-bold">
-                    <span>⚙️</span> Gerenciar Equipe
+                    <span>👥</span> Gerenciar Equipe
+                  </Link>
+                  <Link href="/configuracoes" onClick={() => setIsUserMenuOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 font-medium">
+                    <span>⚙️</span> Configurações
                   </Link>
                 </div>
               </div>

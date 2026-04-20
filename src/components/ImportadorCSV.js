@@ -5,7 +5,7 @@ import { addRenda, getRendas } from '@/lib/rendasDb';
 import { getActiveUsuario } from '@/lib/usuarioDb';
 import { getContas } from '@/lib/contaDb';
 import { getActiveEntidade } from '@/lib/entidadeDb';
-import { getConfiguracoes } from '@/lib/storeDb';
+import { getCategorias } from '@/lib/categoriaDb';
 
 export default function ImportadorCSV({ onImportComplete }) {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
@@ -20,13 +20,12 @@ export default function ImportadorCSV({ onImportComplete }) {
 
   useEffect(() => {
     async function loadData() {
-      const config = await getConfiguracoes();
-      let catGastos = config.categoriasGastos || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
-      if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
-        catGastos = catGastos.map(c => c.nome);
-      }
-      setCategoriasGastos(catGastos);
-      setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
+      const [catG, catR] = await Promise.all([
+        getCategorias('saida'),
+        getCategorias('entrada')
+      ]);
+      setCategoriasGastos(catG.map(c => c.nome));
+      setCategoriasRendas(catR.map(c => c.nome));
 
       const activeUser = await getActiveUsuario();
       setActiveUsuario(activeUser);
@@ -140,7 +139,7 @@ export default function ImportadorCSV({ onImportComplete }) {
     const dateIdx = csvHeaders.indexOf(csvMapping.data);
     const valIdx = csvHeaders.indexOf(csvMapping.valor);
     const descIdx = csvHeaders.indexOf(csvMapping.descricao);
-    const profileId = activeUsuario?.id || 0;
+    const usuarioId = activeUsuario?.id || 0;
 
     let novosGastos = [];
     let novasRendas = [];
@@ -194,7 +193,7 @@ export default function ImportadorCSV({ onImportComplete }) {
             categoria: categoriasGastos.length > 0 ? categoriasGastos[0] : 'Outros',
             tipoCusto: 'Variável',
             total: Math.abs(valorFinal),
-            perfilId: profileId,
+            usuarioId: usuarioId,
             contaId: selectedContaId ? parseInt(selectedContaId) : undefined,
             produtos: []
           });
@@ -204,7 +203,7 @@ export default function ImportadorCSV({ onImportComplete }) {
             descricao: descricao || 'Renda do Extrato',
             categoria: categoriasRendas.length > 0 ? categoriasRendas[0] : 'Outros',
             valor: valorFinal,
-            perfilId: profileId,
+            usuarioId: usuarioId,
             contaId: selectedContaId ? parseInt(selectedContaId) : undefined
           });
         }

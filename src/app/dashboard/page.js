@@ -16,10 +16,10 @@ export default function Dashboard() {
   const [mesSelecionado, setMesSelecionado] = useState('');
   const [mesesDisponiveis, setMesesDisponiveis] = useState([]);
 
-  // Estados de Primeiro Acesso e Filtro de Perfil
+  // Estados de Primeiro Acesso e Filtro de Usuário
   const [isLoading, setIsLoading] = useState(true);
   const [entidadeAtiva, setEntidadeAtiva] = useState(null);
-  const [perfilSelecionado, setPerfilSelecionado] = useState('all');
+  const [usuarioSelecionado, setUsuarioSelecionado] = useState('all');
   const router = useRouter();
 
   // Estados Lançamento Rápido
@@ -29,10 +29,10 @@ export default function Dashboard() {
   const [quickCategoria, setQuickCategoria] = useState('');
   const [quickTipoCusto, setQuickTipoCusto] = useState('Variável');
   const [quickData, setQuickData] = useState('');
-  const [quickPerfil, setQuickPerfil] = useState('');
+  const [quickUsuario, setQuickUsuario] = useState('');
   const [categoriasGastos, setCategoriasGastos] = useState([]);
   const [categoriasRendas, setCategoriasRendas] = useState([]);
-  const [perfis, setPerfis] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
   const [historicoInsights, setHistoricoInsights] = useState([]);
 
   // Estados da IA
@@ -69,10 +69,10 @@ export default function Dashboard() {
       setCategoriasGastos(catGastos);
       setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
       
-      const loadedPerfis = await getUsuarios(entidade.id);
-      setPerfis(loadedPerfis);
-      if (loadedPerfis.length > 0) {
-        setQuickPerfil(loadedPerfis[0].id);
+      const loadedUsuarios = await getUsuarios(entidade.id);
+      setUsuarios(loadedUsuarios);
+      if (loadedUsuarios.length > 0) {
+        setQuickUsuario(loadedUsuarios[0].id);
       }
       
       setQuickData(new Date().toISOString().split('T')[0]);
@@ -107,20 +107,20 @@ export default function Dashboard() {
   }, [gastos, rendas, mesSelecionado]);
 
   useEffect(() => {
-    if (perfilSelecionado !== 'all') {
-      setQuickPerfil(perfilSelecionado);
+    if (usuarioSelecionado !== 'all') {
+      setQuickUsuario(usuarioSelecionado);
     }
-  }, [perfilSelecionado]);
+  }, [usuarioSelecionado]);
 
   const gastosFiltrados = gastos.filter(g => {
     const matchMes = (mesSelecionado === 'all' || !mesSelecionado) ? true : g.data?.substring(0, 7) === mesSelecionado;
-    const matchPerfil = perfilSelecionado === 'all' ? true : g.perfilId === perfilSelecionado;
-    return matchMes && matchPerfil;
+    const matchUsuario = usuarioSelecionado === 'all' ? true : g.usuarioId === usuarioSelecionado;
+    return matchMes && matchUsuario;
   });
   const rendasFiltradas = rendas.filter(r => {
     const matchMes = (mesSelecionado === 'all' || !mesSelecionado) ? true : r.data?.substring(0, 7) === mesSelecionado;
-    const matchPerfil = perfilSelecionado === 'all' ? true : r.perfilId === perfilSelecionado;
-    return matchMes && matchPerfil;
+    const matchUsuario = usuarioSelecionado === 'all' ? true : r.usuarioId === usuarioSelecionado;
+    return matchMes && matchUsuario;
   });
 
   const totalGastos = gastosFiltrados.reduce((acc, gasto) => acc + (Number(gasto.total) || 0), 0);
@@ -165,7 +165,7 @@ export default function Dashboard() {
 
       const resumo = {
         periodo: mesSelecionado === 'all' || !mesSelecionado ? 'Todos os meses (Consolidado)' : formatMonth(mesSelecionado),
-        perfil: perfilSelecionado === 'all' ? 'Todos (Geral)' : perfis.find(p => p.id === perfilSelecionado)?.nome,
+        usuario: usuarioSelecionado === 'all' ? 'Todos (Geral)' : usuarios.find(p => p.id === usuarioSelecionado)?.nome,
         totalRendas: totalRendas.toFixed(2),
         totalGastos: totalGastos.toFixed(2),
         saldo: saldo.toFixed(2),
@@ -173,7 +173,7 @@ export default function Dashboard() {
         despesasVariaveis: despesasVariaveis.toFixed(2),
         gastosPorCategoria,
         rendasPorCategoria,
-        perfis: perfilSelecionado === 'all' ? perfis : perfis.filter(p => p.id === perfilSelecionado)
+        usuarios: usuarioSelecionado === 'all' ? usuarios : usuarios.filter(p => p.id === usuarioSelecionado)
       };
 
       runTask(
@@ -219,7 +219,7 @@ export default function Dashboard() {
         categoria: quickCategoria,
         tipoCusto: quickTipoCusto,
         total: parseFloat(quickValor),
-        perfilId: quickPerfil,
+        usuarioId: quickUsuario,
         produtos: []
       };
       await addGastoDb(novoGasto);
@@ -230,7 +230,7 @@ export default function Dashboard() {
         data: quickData,
         descricao: quickDescricao,
         categoria: quickCategoria,
-        perfilId: quickPerfil,
+        usuarioId: quickUsuario,
         valor: parseFloat(quickValor)
       };
       await addRendaDb(novaRenda);
@@ -291,14 +291,14 @@ export default function Dashboard() {
         <div className="w-px h-8 bg-gray-300 hidden md:block"></div>
         
         <div className="flex items-center gap-2">
-          <label className="font-semibold text-gray-700">Filtrar por Pessoa:</label>
+          <label className="font-semibold text-gray-700">Filtrar por Usuário:</label>
           <select 
-            value={perfilSelecionado} 
-            onChange={(e) => setPerfilSelecionado(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            value={usuarioSelecionado} 
+            onChange={(e) => setUsuarioSelecionado(e.target.value === 'all' ? 'all' : Number(e.target.value))}
             className="p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer outline-none min-w-[140px]"
           >
             <option value="all">Todos (Geral)</option>
-            {perfis.map(p => (
+            {usuarios.map(p => (
               <option key={p.id} value={p.id}>{p.nome}</option>
             ))}
           </select>
@@ -377,11 +377,11 @@ export default function Dashboard() {
           <div className="w-full md:w-auto flex-1 min-w-[120px]">
             <label className="block text-sm font-medium text-gray-700 mb-1">Lançar para</label>
             <select
-              value={quickPerfil}
-              onChange={(e) => setQuickPerfil(Number(e.target.value))}
+              value={quickUsuario}
+              onChange={(e) => setQuickUsuario(Number(e.target.value))}
               className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 bg-white"
             >
-              {perfis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              {usuarios.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
           </div>
           <div className="w-full md:w-auto flex-1 min-w-[150px]">

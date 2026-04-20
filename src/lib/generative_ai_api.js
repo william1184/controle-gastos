@@ -92,25 +92,42 @@ class GenerativeLanguageApi {
       model: "gemini-flash-latest",
     });
 
-    const categoriasText = categoriasGastos.length > 0 ? categoriasGastos.join(", ") : "Alimentação, Transporte, Saúde, Educação, Lazer, Outros";
+    if (categoriasGastos.length === 0) {
+      throw new Error("Lista de categorias vazia.");
+    }
+
+    const categoriasText = categoriasGastos.join(", ");
 
     const prompt = `
-    Você é um assistente financeiro especialista em categorizar gastos.
-    Eu tenho uma lista de despesas e as seguintes categorias disponíveis: ${categoriasText}.
-    Analise a lista de despesas fornecida em formato JSON e sugira a categoria mais adequada para cada uma, usando estritamente a lista de categorias disponíveis. Recomende alteração se a categoria atual parecer incorreta, não fizer sentido para a descrição, estiver vazia ou for 'Outros'.
+    Você é um assistente financeiro especialista em organizar finanças pessoais e empresariais.
+    Sua tarefa é analisar uma lista de despesas e sugerir a categoria e o tipo de custo mais adequados para cada uma.
+    Categorias disponíveis: ${categoriasText}.
+    Tipos de custo: 'Fixo' (gastos recorrentes e previsíveis como aluguel, internet, seguros) ou 'Variável' (gastos que oscilam como lazer, alimentação fora, compras impulsivas).
+
+    Analise a lista fornecida em formato JSON e sugira:
+    1. A categoria mais adequada (usando estritamente a lista de categorias disponíveis).
+    2. O tipo de custo (Fixo ou Variável).
+
+    Recomende alteração se os dados atuais parecerem incorretos, não fizerem sentido para a descrição, estiverem vazios ou forem 'Outros'/'Variável' de forma genérica.
+    
     Retorne APENAS um array JSON válido, sem formatação Markdown (sem \`\`\`json), no seguinte formato:
     [
-      { "index": 0, "categoria_sugerida": "NomeDaCategoria", "motivo": "Breve justificativa para a mudança" }
+      { 
+        "index": 0, 
+        "categoria_sugerida": "NomeDaCategoria", 
+        "tipo_custo_sugerido": "Fixo" | "Variável",
+        "motivo": "Breve justificativa" 
+      }
     ]
-    Se não houver sugestões pertinentes (ou seja, se todas as categorias atuais parecerem corretas), retorne um array vazio [].
+    Se não houver sugestões pertinentes, retorne um array vazio [].
+    
     Despesas:
-    ${JSON.stringify(gastos.map((g, i) => ({ index: i, apelido: g.apelido, categoria_atual: g.categoria, total: g.total })))}
+    ${JSON.stringify(gastos.map((g, i) => ({ index: i, apelido: g.apelido, categoria_atual: g.categoria, tipo_custo_atual: g.tipoCusto, total: g.total })))}
     `;
 
     const result = await model.generateContent(prompt);
-    // Limpa possível formatação de bloco de código antes de dar parse no JSON
     const text = result.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
-    
+
     return JSON.parse(text);
   }
 
@@ -136,7 +153,7 @@ class GenerativeLanguageApi {
 
     const result = await model.generateContent(prompt);
     const text = result.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
-    
+
     return JSON.parse(text);
   }
 
@@ -145,15 +162,15 @@ class GenerativeLanguageApi {
       model: "gemini-flash-latest",
     });
 
-    let perfisInfo = "";
-    if (resumoOrcamento.perfis && resumoOrcamento.perfis.length > 0) {
-      perfisInfo = "Perfis da Família/Casa:\n" + resumoOrcamento.perfis.map(p => `- Nome: ${p.nome}, Renda: R$ ${p.renda}, Data de Nascimento: ${p.dataNascimento}`).join("\n") + "\nConsidere esses perfis (idade, renda individual, momento de vida) ao fornecer dicas altamente direcionadas para a realidade da família.\n";
+    let usuariosInfo = "";
+    if (resumoOrcamento.usuarios && resumoOrcamento.usuarios.length > 0) {
+      usuariosInfo = "Usuários da Família/Casa:\n" + resumoOrcamento.usuarios.map(u => `- Nome: ${u.nome}, Renda: R$ ${u.renda}, Data de Nascimento: ${u.dataNascimento}`).join("\n") + "\nConsidere esses usuários (idade, renda individual, momento de vida) ao fornecer dicas altamente direcionadas para a realidade da família.\n";
     }
 
     const prompt = `
     Você é um consultor financeiro pessoal super inteligente. Analise o seguinte resumo financeiro e forneça insights acionáveis, claros e objetivos para ajudar o usuário a melhorar sua saúde financeira.
 
-    ${perfisInfo}
+    ${usuariosInfo}
     Resumo do período (${resumoOrcamento.periodo}):
     - Total de Rendas: R$ ${resumoOrcamento.totalRendas}
     - Total de Gastos: R$ ${resumoOrcamento.totalGastos}
@@ -176,6 +193,39 @@ class GenerativeLanguageApi {
 
     const result = await model.generateContent(prompt);
     return result.response.text();
+  }
+
+  async suggestBudgetLimits(historicoGastos, categorias) {
+    const model = this.genAI.getGenerativeModel({
+      model: "gemini-flash-latest",
+    });
+
+    const prompt = `
+    Você é um assistente financeiro inteligente. Com base no histórico de gastos dos últimos meses, sugira limites de orçamento realistas para o próximo mês.
+    
+    Categorias e histórico (Média de gastos):
+    ${JSON.stringify(historicoGastos)}
+
+    Considere:
+    1. Se o gasto é recorrente.
+    2. Se houve picos incomuns.
+    3. Tente sugerir um limite que incentive a economia (ex: 90% da média se for variável, 100% se for fixo).
+
+    Retorne APENAS um objeto JSON onde a chave é o ID da categoria e o valor é o limite sugerido.
+    Exemplo: { "1": 500.0, "2": 1200.0 }
+    
+    Não inclua explicações, apenas o JSON.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
+
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Erro ao processar sugestão da IA:", e);
+      return {};
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 // src/lib/db.js (New File)
-import { SQLiteFS } from 'absurd-sql';
 import initSqlJs from '@jlongster/sql.js';
+import { SQLiteFS } from 'absurd-sql';
 
 import IndexedDBBackend from 'absurd-sql/dist/indexeddb-backend';
 
@@ -16,59 +16,60 @@ export async function initDb() {
     // Prevent execution during Server-Side Rendering (SSR)
     if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') return null;
 
-  if (process.env.NODE_ENV === 'test') {
-    const fs = require('fs');
-    const path = require('path');
-    const wasmPath = path.resolve(process.cwd(), 'node_modules/@jlongster/sql.js/dist/sql-wasm.wasm');
-    const wasmBinary = fs.readFileSync(wasmPath);
-    
+    if (process.env.NODE_ENV === 'test') {
+      const fs = require('fs');
+      const path = require('path');
+      const wasmPath = path.resolve(process.cwd(), 'node_modules/@jlongster/sql.js/dist/sql-wasm.wasm');
+      const wasmBinary = fs.readFileSync(wasmPath);
+
+      SQL = await initSqlJs({
+        wasmBinary
+      });
+
+      db = new SQL.Database(); // In-memory
+      await createTables(db);
+      await seedDefaultData(db);
+      return db;
+    }
+
+    // Load sql.js WebAssembly module
     SQL = await initSqlJs({
-      wasmBinary
+      locateFile: file => `/sql-wasm.wasm`, // Adjust path based on your setup
     });
-    
-    db = new SQL.Database(); // In-memory
-    await createTables(db);
-    return db;
-  }
 
-  // Load sql.js WebAssembly module
-  SQL = await initSqlJs({
-    locateFile: file => `/sql-wasm.wasm`, // Adjust path based on your setup
-  });
+    // Configure SQLiteFS for IndexedDB persistence
+    let sqlFS = new SQLiteFS(SQL.FS, new IndexedDBBackend());
+    SQL.register_for_idb(sqlFS);
 
-  // Configure SQLiteFS for IndexedDB persistence
-  let sqlFS = new SQLiteFS(SQL.FS, new IndexedDBBackend());
-  SQL.register_for_idb(sqlFS);
+    try {
+      SQL.FS.mkdir('/sql');
+    } catch (e) {
+      // Ignore error if directory already exists
+    }
 
-  try {
-    SQL.FS.mkdir('/sql');
-  } catch (e) {
-    // Ignore error if directory already exists
-  }
-  
-  SQL.FS.mount(sqlFS, {}, '/sql');
+    SQL.FS.mount(sqlFS, {}, '/sql');
 
-  const dbPath = '/sql/orcamento.sqlite';
-  
-  // Support environments without SharedArrayBuffer
-  if (typeof SharedArrayBuffer === 'undefined') {
-    let stream = SQL.FS.open(dbPath, 'a+');
-    await stream.node.contents.readIfFallback();
-    SQL.FS.close(stream);
-  }
+    const dbPath = '/sql/orcamento.sqlite';
 
-  // Open the database with persistence
-  db = new SQL.Database(dbPath, { filename: true });
+    // Support environments without SharedArrayBuffer
+    if (typeof SharedArrayBuffer === 'undefined') {
+      let stream = SQL.FS.open(dbPath, 'a+');
+      await stream.node.contents.readIfFallback();
+      SQL.FS.close(stream);
+    }
 
-  // absurd-sql requires journal_mode=MEMORY and benefits from page_size=8192
-  db.exec(`
+    // Open the database with persistence
+    db = new SQL.Database(dbPath, { filename: true });
+
+    // absurd-sql requires journal_mode=MEMORY and benefits from page_size=8192
+    db.exec(`
     PRAGMA page_size=8192;
     PRAGMA journal_mode=MEMORY;
     PRAGMA foreign_keys = ON;
   `);
 
-  await createTables(db);
-  await seedDefaultData(db);
+    await createTables(db);
+    await seedDefaultData(db);
 
     console.log('SQLite database initialized and persisted to IndexedDB.');
     return db;
@@ -91,6 +92,8 @@ async function createTables(database) {
     CREATE TABLE IF NOT EXISTS usuario (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT,
+      renda REAL DEFAULT 0,
+      data_nascimento TEXT,
       entidade_id INTEGER,
       created_at TEXT,
       updated_at TEXT,
@@ -185,8 +188,30 @@ async function createTables(database) {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+
+    -- Feature de Orçamento
+    CREATE TABLE IF NOT EXISTS orcamento (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entidade_id INTEGER,
+      mes INTEGER, -- 1 a 12
+      ano INTEGER,
+      created_at TEXT,
+      updated_at TEXT,
+      FOREIGN KEY (entidade_id) REFERENCES entidade(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS orcamento_categoria (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      orcamento_id INTEGER,
+      categoria_id INTEGER,
+      valor_limite REAL,
+      created_at TEXT,
+      updated_at TEXT,
+      FOREIGN KEY (orcamento_id) REFERENCES orcamento(id),
+      FOREIGN KEY (categoria_id) REFERENCES categoria(id)
+    );
   `);
-  
+
   // Migração simples para quem já tem a base antiga
   try {
     await database.exec("ALTER TABLE entidade ADD COLUMN is_contexto_pessoal INTEGER DEFAULT 1");
@@ -195,6 +220,16 @@ async function createTables(database) {
   }
   try {
     await database.exec("ALTER TABLE transacao ADD COLUMN tipo_custo TEXT");
+  } catch (e) {
+    // Erro ignorável
+  }
+  try {
+    await database.exec("ALTER TABLE usuario ADD COLUMN renda REAL DEFAULT 0");
+  } catch (e) {
+    // Erro ignorável
+  }
+  try {
+    await database.exec("ALTER TABLE usuario ADD COLUMN data_nascimento TEXT");
   } catch (e) {
     // Erro ignorável
   }
@@ -208,20 +243,32 @@ async function seedDefaultData(database) {
   const now = new Date().toISOString();
 
   database.run("INSERT INTO entidade (id, nome, is_contexto_pessoal, created_at) VALUES (1, 'Família Padrão', 1, ?)", [now]);
-  database.run("INSERT INTO usuario (id, nome, entidade_id, created_at) VALUES (1, 'Usuário Padrão', 1, ?)", [now]);
-  database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (1, 'Carteira', 'carteira', 0, 1, ?)", [now]);
-  
+  database.run("INSERT INTO usuario (id, nome, renda, data_nascimento, entidade_id, created_at) VALUES (1, 'Usuário Padrão', 0, '1990-01-01', 1, ?)", [now]);
+  database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (1, 'Itaú', 'banco', 0, 1, ?)", [now]);
+  database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (2, 'Nubank', 'banco', 0, 1, ?)", [now]);
+  database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (3, 'Mercado Pago', 'banco', 0, 1, ?)", [now]);
+
+
+
   // Categorias iniciais
   const categorias = [
-    ['Alimentação', 'saida'],
     ['Salário', 'entrada'],
+    ['Freelance', 'entrada'],
+    ['Investimentos', 'entrada'],
+    ['Rendimentos', 'entrada'],
+    ['Transferencia', 'entrada'],
+    ['Outros', 'entrada'],
+    ['Moradia', 'saida'],
+    ['Contas', 'saida'],
+    ['Alimentação', 'saida'],
     ['Lazer', 'saida'],
     ['Transporte', 'saida'],
     ['Saúde', 'saida'],
     ['Educação', 'saida'],
+    ['Investimentos', 'saida'],
     ['Outros', 'saida']
   ];
-  
+
   categorias.forEach(cat => {
     database.run("INSERT INTO categoria (nome, tipo, created_at) VALUES (?, ?, ?)", [...cat, now]);
   });
@@ -250,15 +297,15 @@ export async function getDatabaseBinary() {
 export async function overwriteDatabaseWithBinary(binaryData) {
   await initDb();
   const dbPath = '/sql/orcamento.sqlite';
-  
+
   // Close existing DB to avoid corruption
   if (db) {
     db.close();
     db = null;
   }
-  
+
   SQL.FS.writeFile(dbPath, binaryData);
-  
+
   // Re-initialize or signal reload
   await initDb();
   window.location.reload();

@@ -8,7 +8,11 @@ export async function getUsuarios(entidadeId) {
   
   return res[0].values.map(row => {
     const obj = {};
-    res[0].columns.forEach((col, i) => obj[col] = row[i]);
+    res[0].columns.forEach((col, i) => {
+      // Map database snake_case to camelCase
+      if (col === 'data_nascimento') obj['dataNascimento'] = row[i];
+      else obj[col] = row[i];
+    });
     return obj;
   });
 }
@@ -19,9 +23,9 @@ export async function addUsuario(usuario) {
   const now = new Date().toISOString();
   
   db.run(`
-    INSERT INTO usuario (nome, entidade_id, created_at)
-    VALUES (?, ?, ?)
-  `, [usuario.nome, usuario.entidade_id, now]);
+    INSERT INTO usuario (nome, renda, data_nascimento, entidade_id, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `, [usuario.nome, usuario.renda || 0, usuario.dataNascimento || null, usuario.entidade_id, now]);
   
   const res = db.exec("SELECT last_insert_rowid()");
   return res[0].values[0][0];
@@ -34,9 +38,9 @@ export async function updateUsuario(id, data) {
   
   db.run(`
     UPDATE usuario 
-    SET nome = ?, updated_at = ?
+    SET nome = ?, renda = ?, data_nascimento = ?, updated_at = ?
     WHERE id = ?
-  `, [data.nome, now, id]);
+  `, [data.nome, data.renda || 0, data.dataNascimento || null, now, id]);
 }
 
 export async function deleteUsuario(id) {
@@ -63,7 +67,10 @@ export async function getActiveUsuario() {
   
   const row = res[0].values[0];
   const obj = {};
-  res[0].columns.forEach((col, i) => obj[col] = row[i]);
+  res[0].columns.forEach((col, i) => {
+    if (col === 'data_nascimento') obj['dataNascimento'] = row[i];
+    else obj[col] = row[i];
+  });
   return obj;
 }
 

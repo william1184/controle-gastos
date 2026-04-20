@@ -8,6 +8,8 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [novoNome, setNovoNome] = useState('');
+  const [novaRenda, setNovaRenda] = useState('');
+  const [novaDataNascimento, setNovaDataNascimento] = useState('');
   const [editingUsuario, setEditingUsuario] = useState(null);
 
   useEffect(() => {
@@ -27,10 +29,17 @@ export default function UsuariosPage() {
     e.preventDefault();
     if (!novoNome || !entidade) return;
 
-    await addUsuario({ nome: novoNome, entidade_id: entidade.id });
+    await addUsuario({
+      nome: novoNome,
+      renda: parseFloat(novaRenda) || 0,
+      dataNascimento: novaDataNascimento || null,
+      entidade_id: entidade.id
+    });
     const data = await getUsuarios(entidade.id);
     setUsuarios(data);
     setNovoNome('');
+    setNovaRenda('');
+    setNovaDataNascimento('');
     window.dispatchEvent(new Event('app:usuarios-updated'));
   };
 
@@ -38,11 +47,17 @@ export default function UsuariosPage() {
     e.preventDefault();
     if (!novoNome || !editingUsuario) return;
 
-    await updateUsuario(editingUsuario.id, { nome: novoNome });
+    await updateUsuario(editingUsuario.id, {
+      nome: novoNome,
+      renda: parseFloat(novaRenda) || 0,
+      dataNascimento: novaDataNascimento || null
+    });
     const data = await getUsuarios(entidade.id);
     setUsuarios(data);
     setEditingUsuario(null);
     setNovoNome('');
+    setNovaRenda('');
+    setNovaDataNascimento('');
     window.dispatchEvent(new Event('app:usuarios-updated'));
   };
 
@@ -62,6 +77,8 @@ export default function UsuariosPage() {
   const startEdit = (usuario) => {
     setEditingUsuario(usuario);
     setNovoNome(usuario.nome);
+    setNovaRenda(usuario.renda || '');
+    setNovaDataNascimento(usuario.dataNascimento || '');
   };
 
   if (loading) {
@@ -84,30 +101,57 @@ export default function UsuariosPage() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-8">
         <div className="p-6 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-700 mb-4">{editingUsuario ? 'Editar Pessoa' : 'Adicionar Nova Pessoa'}</h2>
-          <form onSubmit={editingUsuario ? handleUpdate : handleAdd} className="flex gap-4">
-            <input
-              type="text"
-              value={novoNome}
-              onChange={(e) => setNovoNome(e.target.value)}
-              placeholder="Nome da pessoa"
-              className="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-            />
-            <button
-              type="submit"
-              disabled={!novoNome}
-              className={`px-6 py-3 rounded-xl font-bold text-white transition-all ${editingUsuario ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-50`}
-            >
-              {editingUsuario ? 'Salvar' : 'Adicionar'}
-            </button>
-            {editingUsuario && (
+          <form onSubmit={editingUsuario ? handleUpdate : handleAdd} className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nome</label>
+                <input
+                  type="text"
+                  value={novoNome}
+                  onChange={(e) => setNovoNome(e.target.value)}
+                  placeholder="Nome da pessoa"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Renda (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={novaRenda}
+                  onChange={(e) => setNovaRenda(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Data de Nascimento</label>
+                <input
+                  type="date"
+                  value={novaDataNascimento}
+                  onChange={(e) => setNovaDataNascimento(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              {editingUsuario && (
+                <button
+                  type="button"
+                  onClick={() => { setEditingUsuario(null); setNovoNome(''); setNovaRenda(''); setNovaDataNascimento(''); }}
+                  className="px-6 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
+                >
+                  Cancelar
+                </button>
+              )}
               <button
-                type="button"
-                onClick={() => { setEditingUsuario(null); setNovoNome(''); }}
-                className="px-6 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
+                type="submit"
+                disabled={!novoNome}
+                className={`px-8 py-3 rounded-xl font-bold text-white transition-all ${editingUsuario ? 'bg-yellow-600 hover:bg-yellow-700 shadow-lg shadow-yellow-200' : 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200'} disabled:opacity-50`}
               >
-                Cancelar
+                {editingUsuario ? 'Salvar Alterações' : 'Adicionar Pessoa'}
               </button>
-            )}
+            </div>
           </form>
         </div>
 
@@ -120,7 +164,11 @@ export default function UsuariosPage() {
                 </div>
                 <div>
                   <p className="font-bold text-gray-800">{user.nome}</p>
-                  <p className="text-xs text-gray-400">ID: {user.id}</p>
+                  <div className="flex gap-3 text-[10px] text-gray-400 mt-0.5">
+                    <span>ID: {user.id}</span>
+                    {user.renda > 0 && <span>• R$ {parseFloat(user.renda).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
+                    {user.dataNascimento && <span>• {new Date(user.dataNascimento + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
