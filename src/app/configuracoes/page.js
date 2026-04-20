@@ -10,26 +10,43 @@ export default function Configuracoes() {
 
   const [novoGasto, setNovoGasto] = useState('');
   const [novaRenda, setNovaRenda] = useState('');
+
+  // Google Drive Sync Config
+  const [googleDriveClientId, setGoogleDriveClientId] = useState('');
+  const [googleDriveApiKey, setGoogleDriveApiKey] = useState('');
+  const [googleDriveSyncEnabled, setGoogleDriveSyncEnabled] = useState(false);
+
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     const loadData = async () => {
       const config = await getConfiguracoes();
-      
+
       setGeminiApiKey(config.geminiApiKey || '');
-      
+
       let catGastos = config.categoriasGastos || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
       if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
         catGastos = catGastos.map(c => c.nome);
       }
       setCategoriasGastos(catGastos);
       setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
+
+      setGoogleDriveClientId(config.googleDriveClientId || '');
+      setGoogleDriveApiKey(config.googleDriveApiKey || '');
+      setGoogleDriveSyncEnabled(!!config.googleDriveSyncEnabled);
     };
     loadData();
   }, []);
 
   const handleSave = async () => {
-    const config = { geminiApiKey, categoriasGastos, categoriasRendas };
+    const config = {
+      geminiApiKey,
+      categoriasGastos,
+      categoriasRendas,
+      googleDriveClientId,
+      googleDriveApiKey,
+      googleDriveSyncEnabled
+    };
     await setConfiguracoes(config);
     alert('Configurações salvas com sucesso!');
   };
@@ -70,7 +87,7 @@ export default function Configuracoes() {
       }
     };
     reader.readAsText(file);
-    e.target.value = ''; 
+    e.target.value = '';
   };
 
   const addItem = (item, list, setList, setInput) => {
@@ -145,6 +162,51 @@ export default function Configuracoes() {
           <button onClick={() => addItem(novaRenda, categoriasRendas, setCategoriasRendas, setNovaRenda)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Adicionar</button>
         </div>
         <ul className="flex flex-wrap gap-2">{categoriasRendas.map(cat => (<li key={cat} className="bg-gray-200 px-3 py-1 rounded-full flex items-center gap-2">{cat} <button onClick={() => removeItem(cat, categoriasRendas, setCategoriasRendas)} className="text-red-500 font-bold hover:text-red-700">&times;</button></li>))}</ul>
+      </div>
+
+      {/* Card: Sincronismo Google Drive */}
+      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-green-600">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <span>☁️</span> Sincronismo com Google Drive
+        </h2>
+        
+        <div className="flex items-center gap-2 mb-6">
+          <input 
+            type="checkbox" 
+            id="syncEnabled" 
+            checked={googleDriveSyncEnabled} 
+            onChange={(e) => setGoogleDriveSyncEnabled(e.target.checked)}
+            className="w-4 h-4 text-green-600"
+          />
+          <label htmlFor="syncEnabled" className="text-sm font-medium text-gray-700">Habilitar Sincronismo Automático</label>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Google Client ID</label>
+            <input
+              type="text"
+              value={googleDriveClientId}
+              onChange={(e) => setGoogleDriveClientId(e.target.value)}
+              placeholder="Ex: 123456789-abc.apps.googleusercontent.com"
+              className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Google API Key</label>
+            <input
+              type="password"
+              value={googleDriveApiKey}
+              onChange={(e) => setGoogleDriveApiKey(e.target.value)}
+              placeholder="Insira sua API Key do Google Cloud"
+              className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-4">
+          O sincronismo permite salvar seu banco de dados (SQLite) diretamente no seu Google Drive. 
+          Isso garante que seus dados estejam seguros e acessíveis em outros dispositivos.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-4 max-w-3xl">

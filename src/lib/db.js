@@ -232,3 +232,33 @@ export function getDb() {
   }
   return db;
 }
+
+/**
+ * Returns the raw binary data of the SQLite database file.
+ */
+export async function getDatabaseBinary() {
+  await initDb();
+  const dbPath = '/sql/orcamento.sqlite';
+  return SQL.FS.readFile(dbPath);
+}
+
+/**
+ * Overwrites the local SQLite database file with new binary data.
+ * This effectively restores a backup.
+ */
+export async function overwriteDatabaseWithBinary(binaryData) {
+  await initDb();
+  const dbPath = '/sql/orcamento.sqlite';
+  
+  // Close existing DB to avoid corruption
+  if (db) {
+    db.close();
+    db = null;
+  }
+  
+  SQL.FS.writeFile(dbPath, binaryData);
+  
+  // Re-initialize or signal reload
+  await initDb();
+  window.location.reload();
+}

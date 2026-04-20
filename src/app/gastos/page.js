@@ -1,7 +1,7 @@
 "use client";
 import { addGasto, clearGastos, deleteGasto, getGastos, updateGasto } from '@/lib/gastosDb';
-import { getConfiguracoes } from '@/lib/storeDb';
 import GenerativeLanguageApi from '@/lib/generative_ai_api';
+import { getConfiguracoes } from '@/lib/storeDb';
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -54,15 +54,15 @@ export default function Home() {
     try {
       const config = await getConfiguracoes();
       const apiKey = config.geminiApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-      
+
       if (!apiKey) {
         throw new Error('Chave de API do Gemini não configurada. Defina na aba de Configurações.');
       }
 
       let catNames = [];
       if (config.categoriasGastos && config.categoriasGastos.length > 0) {
-        catNames = typeof config.categoriasGastos[0] === 'string' 
-          ? config.categoriasGastos 
+        catNames = typeof config.categoriasGastos[0] === 'string'
+          ? config.categoriasGastos
           : config.categoriasGastos.map(c => c.nome);
       }
 
@@ -291,7 +291,7 @@ export default function Home() {
         }
         const finalGastos = await getGastos();
         setGastos(finalGastos);
-        
+
         alert('Base importada com sucesso!');
         event.target.value = ''; // Limpa o input
       } catch (error) {
@@ -338,44 +338,57 @@ export default function Home() {
           </tr>
         </thead>
         <tbody>
-          {gastos.map((gasto, index) => (
-            <tr key={index}>
-              <td className="border border-gray-300 p-2">{gasto.data}</td>
-              <td className="border border-gray-300 p-2">{gasto.apelido || 'Sem Apelido'}</td>
-              <td className="border border-gray-300 p-2">{gasto.categoria || '-'}</td>
-              <td className="border border-gray-300 p-2 text-center">
-                {(() => {
-                  const tipo = gasto.tipoCusto || 'Variável';
-                  return (
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${tipo === 'Fixo' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{tipo}</span>
-                  );
-                })()}
-              </td>
-              <td className="border border-gray-300 p-2">R$ {gasto.total.toFixed(2)}</td>
-              <td className="border border-gray-300 p-2">
-                <div className="flex gap-2">
-                  <Link
-                    href={`/gastos/editar/${gasto.id}`}
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
-                  >
-                    Editar
-                  </Link>
-                  <Link
-                    href={`/gastos/${gasto.id}`}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
-                  >
-                    Consultar
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(index)}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
-                  >
-                    Excluir
-                  </button>
-                </div>
+          {gastos.length === 0 ? (
+            <tr>
+              <td colSpan="6" className="border border-gray-300 p-8 text-center text-gray-500 italic">
+                Nenhum gasto cadastrado.
               </td>
             </tr>
-          ))}
+          ) : (
+            gastos.map((gasto, index) => (
+              <tr key={index} className="hover:bg-gray-50 transition-colors">
+                <td className="border border-gray-300 p-2">{gasto.data}</td>
+                <td className="border border-gray-300 p-2 font-medium">{gasto.apelido || 'Sem Apelido'}</td>
+                <td className="border border-gray-300 p-2">
+                  <span className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-700">{gasto.categoria || '-'}</span>
+                </td>
+                <td className="border border-gray-300 p-2 text-center">
+                  {(() => {
+                    const tipo = gasto.tipoCusto || 'Variável';
+                    return (
+                      <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${tipo === 'Fixo' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{tipo}</span>
+                    );
+                  })()}
+                </td>
+                <td className="border border-gray-300 p-2 font-bold text-gray-800">R$ {gasto.total.toFixed(2)}</td>
+                <td className="border border-gray-300 p-2">
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/gastos/editar/${gasto.id}`}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
+                      title="Editar"
+                    >
+                      ✏️
+                    </Link>
+                    <Link
+                      href={`/gastos/${gasto.id}`}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded transition"
+                      title="Consultar"
+                    >
+                      🔍
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(index)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded transition"
+                      title="Excluir"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
 
@@ -392,9 +405,9 @@ export default function Home() {
               />
               <button
                 type="submit"
-              className="w-full p-2 text-white rounded bg-purple-600 hover:bg-purple-700 font-medium"
+                className="w-full p-2 text-white rounded bg-purple-600 hover:bg-purple-700 font-medium"
               >
-              Enviar para Processamento em 2º Plano
+                Enviar para Processamento em 2º Plano
               </button>
             </form>
             <button

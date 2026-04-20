@@ -84,7 +84,8 @@ export async function addRenda(renda) {
   }
 
   const accountRes = db.exec("SELECT id FROM conta WHERE entidade_id = ? LIMIT 1", [entidadeId]);
-  const contaId = accountRes[0]?.values[0][0] || 1;
+  const defaultContaId = accountRes[0]?.values[0][0] || 1;
+  const contaId = renda.contaId || defaultContaId;
 
   db.run(`
     INSERT INTO transacao (data, descricao, valor, tipo, categoria_id, conta_id, usuario_id, created_at)

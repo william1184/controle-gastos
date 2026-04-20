@@ -117,7 +117,8 @@ export async function addGasto(gasto) {
   }
 
   const accountRes = db.exec("SELECT id FROM conta WHERE entidade_id = ? LIMIT 1", [entidadeId]);
-  const contaId = accountRes[0]?.values[0][0] || 1;
+  const defaultContaId = accountRes[0]?.values[0][0] || 1;
+  const contaId = gasto.contaId || defaultContaId;
 
   // Insert into transacao
   db.run(`
