@@ -86,6 +86,91 @@ class GenerativeLanguageApi {
 
     return parsedResult;
   }
+
+  async suggestCategories(gastos, categoriasGastos = []) {
+    const model = this.genAI.getGenerativeModel({
+      model: "gemini-flash-latest",
+    });
+
+    const categoriasText = categoriasGastos.length > 0 ? categoriasGastos.join(", ") : "Alimentação, Transporte, Saúde, Educação, Lazer, Outros";
+
+    const prompt = `
+    Você é um assistente financeiro especialista em categorizar gastos.
+    Eu tenho uma lista de despesas e as seguintes categorias disponíveis: ${categoriasText}.
+    Analise a lista de despesas fornecida em formato JSON e sugira a categoria mais adequada para cada uma, usando estritamente a lista de categorias disponíveis. Recomende alteração se a categoria atual parecer incorreta, não fizer sentido para a descrição, estiver vazia ou for 'Outros'.
+    Retorne APENAS um array JSON válido, sem formatação Markdown (sem \`\`\`json), no seguinte formato:
+    [
+      { "index": 0, "categoria_sugerida": "NomeDaCategoria", "motivo": "Breve justificativa para a mudança" }
+    ]
+    Se não houver sugestões pertinentes (ou seja, se todas as categorias atuais parecerem corretas), retorne um array vazio [].
+    Despesas:
+    ${JSON.stringify(gastos.map((g, i) => ({ index: i, apelido: g.apelido, categoria_atual: g.categoria, total: g.total })))}
+    `;
+
+    const result = await model.generateContent(prompt);
+    // Limpa possível formatação de bloco de código antes de dar parse no JSON
+    const text = result.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
+    
+    return JSON.parse(text);
+  }
+
+  async suggestCategoriesRendas(rendas, categoriasRendas = []) {
+    const model = this.genAI.getGenerativeModel({
+      model: "gemini-flash-latest",
+    });
+
+    const categoriasText = categoriasRendas.length > 0 ? categoriasRendas.join(", ") : "Salário, Freelance, Investimentos, Rendimentos, Outros";
+
+    const prompt = `
+    Você é um assistente financeiro especialista em categorizar rendas e ganhos.
+    Eu tenho uma lista de rendas e as seguintes categorias disponíveis: ${categoriasText}.
+    Analise a lista de rendas fornecida em formato JSON e sugira a categoria mais adequada para cada uma, usando estritamente a lista de categorias disponíveis. Recomende alteração se a categoria atual parecer incorreta, não fizer sentido para a descrição, estiver vazia ou for 'Outros'.
+    Retorne APENAS um array JSON válido, sem formatação Markdown (sem \`\`\`json), no seguinte formato:
+    [
+      { "index": 0, "categoria_sugerida": "NomeDaCategoria", "motivo": "Breve justificativa para a mudança" }
+    ]
+    Se não houver sugestões pertinentes (ou seja, se todas as categorias atuais parecerem corretas), retorne um array vazio [].
+    Rendas:
+    ${JSON.stringify(rendas.map((r, i) => ({ index: i, descricao: r.descricao, categoria_atual: r.categoria, valor: r.valor })))}
+    `;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
+    
+    return JSON.parse(text);
+  }
+
+  async getBudgetInsights(resumoOrcamento) {
+    const model = this.genAI.getGenerativeModel({
+      model: "gemini-flash-latest",
+    });
+
+    const prompt = `
+    Você é um consultor financeiro pessoal super inteligente. Analise o seguinte resumo financeiro e forneça insights acionáveis, claros e objetivos para ajudar o usuário a melhorar sua saúde financeira.
+
+    Resumo do período (${resumoOrcamento.periodo}):
+    - Total de Rendas: R$ ${resumoOrcamento.totalRendas}
+    - Total de Gastos: R$ ${resumoOrcamento.totalGastos}
+    - Saldo: R$ ${resumoOrcamento.saldo}
+    - Despesas Fixas: R$ ${resumoOrcamento.despesasFixas}
+    - Despesas Variáveis: R$ ${resumoOrcamento.despesasVariaveis}
+
+    Gastos por Categoria:
+    ${JSON.stringify(resumoOrcamento.gastosPorCategoria)}
+
+    Rendas por Categoria:
+    ${JSON.stringify(resumoOrcamento.rendasPorCategoria)}
+
+    Por favor, forneça dicas com:
+    - Avaliação geral do saldo.
+    - Alertas sobre categorias onde os gastos parecem altos.
+    - Dicas práticas de onde reduzir (especialmente em despesas variáveis).
+    - Evite formatação complexa em Markdown, utilize apenas texto simples com emojis, quebras de linha e tópicos.
+    `;
+
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  }
 }
 
 export default GenerativeLanguageApi;

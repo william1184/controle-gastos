@@ -13,7 +13,7 @@ export default function EditarRenda() {
 
   useEffect(() => {
     const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
-    const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Outros'];
+    const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
     setCategoriasSalvas(categorias);
 
     if (id) {

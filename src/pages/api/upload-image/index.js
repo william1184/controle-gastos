@@ -25,6 +25,7 @@ export default async function handler(req, res) {
 
     form.parse(req, async (err, fields, files) => {
       if (err) {
+        console.error('[API upload-image] Erro ao processar o formulário de upload:', err);
         return res.status(500).json({ error: 'Erro ao processar a imagem' });
       }
       
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
         // Excluir o arquivo após o processamento bem-sucedido
         fs.unlink(imagePath, (unlinkErr) => {
           if (unlinkErr) {
-            console.error('Erro ao excluir o arquivo:', unlinkErr);
+            console.error('[API upload-image] Erro ao excluir o arquivo após sucesso:', unlinkErr);
           } else {
             console.log('Arquivo excluído com sucesso:', imagePath);
           }
@@ -49,14 +50,14 @@ export default async function handler(req, res) {
 
         return res.status(200).json({ data: json });
       } catch (error) {
-        console.log(error);
+        console.error('[API upload-image] Falha ao gerar conteúdo via Gemini AI:', error);
 
         // Excluir o arquivo mesmo em caso de erro
         fs.unlink(imagePath, (unlinkErr) => {
           if (unlinkErr) {
-            console.error('Erro ao excluir o arquivo:', unlinkErr);
+            console.error('[API upload-image] Erro ao excluir o arquivo após falha:', unlinkErr);
           } else {
-            console.log('Arquivo excluído com sucesso:', imagePath);
+            console.log('Arquivo temporário excluído após falha:', imagePath);
           }
         });
 

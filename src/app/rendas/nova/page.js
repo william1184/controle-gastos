@@ -15,7 +15,7 @@ export default function NovaRenda() {
     setData(hoje);
 
     const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
-    const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Outros'];
+    const categorias = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos (juros, dividendos)', 'Rendimentos', 'Outros'];
     setCategoriasSalvas(categorias);
     setCategoria(categorias[0] || 'Outros');
   }, []);

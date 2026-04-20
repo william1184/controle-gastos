@@ -22,6 +22,7 @@ export default function EditarGasto() {
       { nome: 'Saúde', tipo: 'Variável' },
       { nome: 'Educação', tipo: 'Fixo' },
       { nome: 'Lazer', tipo: 'Variável' },
+      { nome: 'Investimentos', tipo: 'Variável' },
       { nome: 'Outros', tipo: 'Variável' }
     ];
     if (categorias.length > 0 && typeof categorias[0] === 'string') {

@@ -1,7 +1,8 @@
 "use client";
+import GenerativeLanguageApi from '@/lib/generative_ai_api';
+import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import * as XLSX from 'xlsx';
 
 export default function Dashboard() {
   const [gastos, setGastos] = useState([]);
@@ -17,12 +18,13 @@ export default function Dashboard() {
   const [quickData, setQuickData] = useState('');
   const [categoriasGastos, setCategoriasGastos] = useState([]);
   const [categoriasRendas, setCategoriasRendas] = useState([]);
+  const [historicoInsights, setHistoricoInsights] = useState([]);
 
-  // Estados de Mapeamento de Extrato CSV
-  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
-  const [csvHeaders, setCsvHeaders] = useState([]);
-  const [csvLines, setCsvLines] = useState([]);
-  const [csvMapping, setCsvMapping] = useState({ data: '', valor: '', descricao: '', tipo: '' });
+  // Estados da IA
+  const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
+  const [aiInsights, setAiInsights] = useState('');
+  const { runTask, isTaskRunning } = useBackgroundTask();
+  const loadingInsights = isTaskRunning('ai-insights');
 
   useEffect(() => {
     // Busca os dados do localStorage
@@ -42,15 +44,17 @@ export default function Dashboard() {
       { nome: 'Saúde', tipo: 'Variável' },
       { nome: 'Educação', tipo: 'Fixo' },
       { nome: 'Lazer', tipo: 'Variável' },
+      { nome: 'Investimentos', tipo: 'Variável' },
       { nome: 'Outros', tipo: 'Variável' }
     ];
     if (catGastos.length > 0 && typeof catGastos[0] === 'string') {
       catGastos = catGastos.map(c => ({ nome: c, tipo: 'Variável' }));
     }
     setCategoriasGastos(catGastos);
-    setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Outros']);
+    setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
     
     setQuickData(new Date().toISOString().split('T')[0]);
+    setHistoricoInsights(JSON.parse(localStorage.getItem('historicoInsights')) || []);
   }, []);
 
   useEffect(() => {
@@ -69,14 +73,14 @@ export default function Dashboard() {
     const mesesArr = Array.from(meses).sort().reverse();
     setMesesDisponiveis(mesesArr);
     
-    if (!mesSelecionado && mesesArr.length > 0) {
+    if (mesSelecionado === '' && mesesArr.length > 0) {
       const currentMonth = new Date().toISOString().substring(0, 7);
       setMesSelecionado(mesesArr.includes(currentMonth) ? currentMonth : mesesArr[0]);
     }
   }, [gastos, rendas, mesSelecionado]);
 
-  const gastosFiltrados = mesSelecionado ? gastos.filter(g => g.data && g.data.substring(0, 7) === mesSelecionado) : gastos;
-  const rendasFiltradas = mesSelecionado ? rendas.filter(r => r.data && r.data.substring(0, 7) === mesSelecionado) : rendas;
+  const gastosFiltrados = (mesSelecionado && mesSelecionado !== 'all') ? gastos.filter(g => g.data && g.data.substring(0, 7) === mesSelecionado) : gastos;
+  const rendasFiltradas = (mesSelecionado && mesSelecionado !== 'all') ? rendas.filter(r => r.data && r.data.substring(0, 7) === mesSelecionado) : rendas;
 
   const totalGastos = gastosFiltrados.reduce((acc, gasto) => acc + (Number(gasto.total) || 0), 0);
   const totalRendas = rendasFiltradas.reduce((acc, renda) => acc + (Number(renda.valor) || 0), 0);
@@ -114,6 +118,51 @@ export default function Dashboard() {
     return `${monthNames[parseInt(month, 10) - 1]}/${year}`;
   };
 
+  const handleGetInsights = async () => {
+    try {
+      const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
+      const apiKey = config.geminiApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+      if (!apiKey) throw new Error('Chave de API do Gemini não configurada. Defina na aba de Configurações.');
+
+      const resumo = {
+        periodo: mesSelecionado === 'all' || !mesSelecionado ? 'Todos os meses (Consolidado)' : formatMonth(mesSelecionado),
+        totalRendas: totalRendas.toFixed(2),
+        totalGastos: totalGastos.toFixed(2),
+        saldo: saldo.toFixed(2),
+        despesasFixas: despesasFixas.toFixed(2),
+        despesasVariaveis: despesasVariaveis.toFixed(2),
+        gastosPorCategoria,
+        rendasPorCategoria
+      };
+
+      runTask(
+        'ai-insights',
+        'Analisando a saúde financeira (IA)',
+        async () => {
+          const api = new GenerativeLanguageApi(apiKey);
+          return await api.getBudgetInsights(resumo);
+        },
+        (text) => { 
+          const novoInsight = {
+            id: Date.now(),
+            dataGeracao: new Date().toISOString(),
+            periodo: resumo.periodo,
+            texto: text
+          };
+          setHistoricoInsights(prev => {
+            const atualizado = [novoInsight, ...prev];
+            localStorage.setItem('historicoInsights', JSON.stringify(atualizado));
+            return atualizado;
+          });
+          setAiInsights(text); setIsInsightsModalOpen(true); 
+        },
+        (err) => alert('Erro ao obter insights: ' + err.message)
+      );
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
   const handleQuickSave = (e) => {
     e.preventDefault();
     if (!quickData || !quickCategoria || !quickValor || parseFloat(quickValor) <= 0) {
@@ -149,325 +198,47 @@ export default function Dashboard() {
     alert('Lançamento registrado com sucesso!');
   };
 
-  const handleExportExcel = () => {
-    if (gastos.length === 0 && rendas.length === 0) {
-      return alert('Nenhum dado para exportar.');
-    }
-
-    const wb = XLSX.utils.book_new();
-
-    // --- Aba de Gastos ---
-    const gastosData = [
-      ["ID Gasto", "Data", "Apelido", "Categoria", "Total Gasto", "Nome do Produto", "Codigo do Produto", "Quantidade", "Unidade", "Preco Unitario", "Preco Total"]
-    ];
-
-    gastos.forEach((gasto, index) => {
-      if (!gasto.produtos || gasto.produtos.length === 0) {
-        gastosData.push([index, gasto.data, gasto.apelido || '', gasto.categoria || '', gasto.total, '', '', '', '', '', '']);
-      } else {
-        gasto.produtos.forEach(produto => {
-          gastosData.push([
-            index,
-            gasto.data,
-            gasto.apelido || '',
-            gasto.categoria || '',
-            gasto.total,
-            produto.nome || '',
-            produto.codigo || '',
-            produto.quantidade || 0,
-            produto.unidade || '',
-            produto.preco_unitario || 0,
-            produto.preco_total || 0
-          ]);
-        });
-      }
-    });
-
-    const wsGastos = XLSX.utils.aoa_to_sheet(gastosData);
-    XLSX.utils.book_append_sheet(wb, wsGastos, "Gastos");
-
-    // --- Aba de Rendas ---
-    let wsRendas;
-    if (rendas.length > 0) {
-      wsRendas = XLSX.utils.json_to_sheet(rendas);
-    } else {
-      wsRendas = XLSX.utils.aoa_to_sheet([["valor", "data", "descricao"]]); // Cabeçalhos padrão
-    }
-    XLSX.utils.book_append_sheet(wb, wsRendas, "Rendas");
-
-    // Salvar o arquivo
-    XLSX.writeFile(wb, "meu_orcamento.xlsx");
-  };
-
-  const handleImportExcel = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    if (!window.confirm('A importação irá substituir a base de gastos e rendas atual. Deseja continuar?')) {
-      event.target.value = ''; 
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-
-      // --- Importar Gastos ---
-      const wsGastos = workbook.Sheets["Gastos"];
-      if (wsGastos) {
-        const gastosRows = XLSX.utils.sheet_to_json(wsGastos, { header: 1 });
-        const importedGastos = [];
-        let currentGastoId = null;
-        let currentGasto = null;
-
-        for (let i = 1; i < gastosRows.length; i++) {
-          const cols = gastosRows[i];
-          if (cols.length === 0) continue;
-
-          let id = cols[0];
-          
-          let data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr;
-          // Verifica se a tabela exportada era a versão antiga (sem categoria) ou nova
-          if (gastosRows[0].length === 10) {
-             data = cols[1]; apelido = cols[2]; categoria = ''; totalStr = cols[3]; 
-             pNome = cols[4]; pCodigo = cols[5]; pQtdStr = cols[6]; pUnidade = cols[7]; 
-             pPrecoUniStr = cols[8]; pPrecoTotStr = cols[9];
-          } else {
-             data = cols[1]; apelido = cols[2]; categoria = cols[3]; totalStr = cols[4]; 
-             pNome = cols[5]; pCodigo = cols[6]; pQtdStr = cols[7]; pUnidade = cols[8]; 
-             pPrecoUniStr = cols[9]; pPrecoTotStr = cols[10];
-          }
-
-          if (id !== undefined && id !== "" && id !== currentGastoId) {
-            currentGastoId = id;
-            currentGasto = {
-              data: data,
-              apelido: apelido,
-              categoria: categoria,
-              total: parseFloat(totalStr) || 0,
-              produtos: []
-            };
-            importedGastos.push(currentGasto);
-          }
-
-          if (currentGasto && (pNome || pCodigo)) { // pNome ou pCodigo
-            currentGasto.produtos.push({
-              nome: pNome || '',
-              codigo: pCodigo || '',
-              quantidade: parseFloat(pQtdStr) || 0,
-              unidade: pUnidade || '',
-              preco_unitario: parseFloat(pPrecoUniStr) || 0,
-              preco_total: parseFloat(pPrecoTotStr) || 0
-            });
-          }
-        }
-        setGastos(importedGastos);
-        localStorage.setItem('gastos', JSON.stringify(importedGastos));
-      }
-
-      // --- Importar Rendas ---
-      const wsRendas = workbook.Sheets["Rendas"];
-      if (wsRendas) {
-        const importedRendas = XLSX.utils.sheet_to_json(wsRendas);
-        setRendas(importedRendas);
-        localStorage.setItem('rendas', JSON.stringify(importedRendas));
-      }
-
-      alert('Base importada com sucesso!');
-      event.target.value = '';
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  const handleImportExtratoCSV = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-      if (lines.length === 0) return;
-
-      // Detectar separador
-      const separator = text.indexOf(';') > -1 ? ';' : ',';
-
-      // Função auxiliar para ignorar aspas duplas no CSV
-      const parseLine = (line) => {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"' && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === separator && !inQuotes) {
-            result.push(current);
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        result.push(current);
-        return result;
-      };
-
-      // Extrair e processar cabeçalhos
-      const headersRaw = parseLine(lines[0]);
-      const headers = headersRaw.map(h => h.trim());
-      const headersLower = headers.map(h => h.toLowerCase());
-
-      // Prever melhores escolhas de colunas
-      let dateIdx = headersLower.findIndex(h => h.includes('data') || h.includes('date'));
-      let valIdx = headersLower.findIndex(h => h === 'valor' || h === 'amount' || h.includes('deb_cred') || h.includes('deb') || h.includes('cred'));
-      if (valIdx === -1) valIdx = headersLower.findIndex(h => h.includes('valor'));
-      let descIdx = headersLower.findIndex(h => h.includes('descri') || h.includes('hist') || h.includes('detalhe') || h.includes('lançamento'));
-      let tipoIdx = headersLower.findIndex(h => h === 'tipo' || h.includes('operação') || h.includes('natureza') || h === 't');
-
-      setCsvHeaders(headers);
-      setCsvLines(lines.slice(1).map(l => parseLine(l)));
-      setCsvMapping({
-        data: dateIdx !== -1 ? headers[dateIdx] : '',
-        valor: valIdx !== -1 ? headers[valIdx] : '',
-        descricao: descIdx !== -1 ? headers[descIdx] : '',
-        tipo: tipoIdx !== -1 ? headers[tipoIdx] : ''
-      });
-      setIsCsvModalOpen(true);
-      event.target.value = '';
-    };
-    reader.readAsText(file);
-  };
-
-  const handleConfirmMapping = () => {
-    if (!csvMapping.data || !csvMapping.valor) {
-      alert("Por favor, mapeie pelo menos as colunas de Data e Valor.");
-      return;
-    }
-
-    const dateIdx = csvHeaders.indexOf(csvMapping.data);
-    const valIdx = csvHeaders.indexOf(csvMapping.valor);
-    const descIdx = csvHeaders.indexOf(csvMapping.descricao);
-    const tipoIdx = csvHeaders.indexOf(csvMapping.tipo);
-
-    let novosGastos = [];
-    let novasRendas = [];
-
-    const parseDate = (str) => {
-      const s = str.trim();
-      if (/^(\d{2})\/(\d{2})\/(\d{4})$/.test(s)) {
-        const parts = s.split('/');
-        return `${parts[2]}-${parts[1]}-${parts[0]}`;
-      } else if (/^(\d{4})-(\d{2})-(\d{2})$/.test(s)) {
-        return s;
-      }
-      return null;
-    };
-
-    const parseCurrency = (str) => {
-      // Limpa qualquer letra (como D, C, R$) e espaços em branco da string para interpretar só o número
-      let s = str.trim().replace(/[a-zA-Z\sR$]/g, '');
-      if (s === '') return null;
-      if (s.includes('.') && s.includes(',')) {
-        const lastDot = s.lastIndexOf('.');
-        const lastComma = s.lastIndexOf(',');
-        if (lastComma > lastDot) {
-          s = s.replace(/\./g, '').replace(',', '.');
-        } else {
-          s = s.replace(/,/g, '');
-        }
-      } else if (s.includes(',')) {
-        s = s.replace(',', '.');
-      }
-      const num = parseFloat(s);
-      return isNaN(num) ? null : num;
-    };
-
-    for (let i = 0; i < csvLines.length; i++) {
-      const cols = csvLines[i];
-      if (cols.length < 2) continue;
-
-      let data = parseDate(cols[dateIdx] || '');
-      let rawValor = (cols[valIdx] || '').trim().toUpperCase();
-      let valorParsed = parseCurrency(rawValor);
-      let descricao = descIdx !== -1 ? (cols[descIdx] || '').trim() : '';
-
-      if (data && valorParsed !== null && valorParsed !== 0) {
-        let isDebito = null;
-        
-        // Verifica a coluna específica de Tipo (D/C), se o usuário tiver mapeado
-        if (tipoIdx !== -1) {
-          const t = (cols[tipoIdx] || '').trim().toUpperCase();
-          if (t === 'D' || t === 'DEB' || t.startsWith('DÉB') || t === 'SAÍDA' || t === 'SAIDA' || t === '-') isDebito = true;
-          else if (t === 'C' || t === 'CRED' || t.startsWith('CRÉ') || t === 'ENTRADA' || t === '+') isDebito = false;
-        } else {
-          // Caso contrário, tenta descobrir se tem um 'D' ou 'C' na própria célula do valor (ex: 100,00 D)
-          if (rawValor.endsWith('D') || rawValor.endsWith('DEB') || rawValor.endsWith('-')) isDebito = true;
-          else if (rawValor.endsWith('C') || rawValor.endsWith('CRED') || rawValor.endsWith('+')) isDebito = false;
-        }
-
-        let valorFinal = valorParsed;
-        if (isDebito === true) valorFinal = -Math.abs(valorParsed);
-        else if (isDebito === false) valorFinal = Math.abs(valorParsed);
-
-        if (valorFinal < 0) {
-          novosGastos.push({
-            data,
-            apelido: descricao || 'Gasto do Extrato',
-            categoria: categoriasGastos.length > 0 ? categoriasGastos[0].nome : 'Outros',
-            total: Math.abs(valorFinal),
-            produtos: []
-          });
-        } else {
-          novasRendas.push({
-            data,
-            descricao: descricao || 'Renda do Extrato',
-            categoria: categoriasRendas.length > 0 ? categoriasRendas[0] : 'Outros',
-            valor: valorFinal
-          });
-        }
-      }
-    }
-
-    if (novosGastos.length > 0 || novasRendas.length > 0) {
-      const updatedGastos = [...gastos, ...novosGastos];
-      const updatedRendas = [...rendas, ...novasRendas];
-      setGastos(updatedGastos);
-      setRendas(updatedRendas);
-      localStorage.setItem('gastos', JSON.stringify(updatedGastos));
-      localStorage.setItem('rendas', JSON.stringify(updatedRendas));
-      alert(`Extrato importado com sucesso!\n\n${novosGastos.length} gastos adicionados.\n${novasRendas.length} rendas adicionadas.`);
-    } else {
-      alert('Nenhum registro válido encontrado. Verifique se o mapeamento das colunas está correto e as linhas contêm dados.');
-    }
-
-    setIsCsvModalOpen(false);
-    setCsvHeaders([]);
-    setCsvLines([]);
-  };
-
   const saldo = totalRendas - totalGastos;
+
+  const viewInsight = (insight) => {
+    setAiInsights(insight.texto);
+    setIsInsightsModalOpen(true);
+  };
+
+  const deleteInsight = (id) => {
+    if (!window.confirm("Deseja realmente excluir este insight?")) return;
+    const atualizado = historicoInsights.filter(i => i.id !== id);
+    setHistoricoInsights(atualizado);
+    localStorage.setItem('historicoInsights', JSON.stringify(atualizado));
+  };
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-6 text-gray-800">Meu Orçamento - Dashboard</h1>
       
-      {/* Filtro de Mês */}
-      <div className="mb-6 flex items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200 w-fit">
-        <label className="font-semibold text-gray-700">Mês de Referência:</label>
-        <select 
-          value={mesSelecionado} 
-          onChange={(e) => setMesSelecionado(e.target.value)}
-          className="p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer outline-none"
+      {/* Controles do Topo */}
+      <div className="mb-6 flex flex-wrap items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200 w-full md:w-fit">
+        <div className="flex items-center gap-2">
+          <label className="font-semibold text-gray-700">Mês de Referência:</label>
+          <select 
+            value={mesSelecionado} 
+            onChange={(e) => setMesSelecionado(e.target.value)}
+            className="p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer outline-none"
+          >
+            <option value="all">Todos os Meses (Geral)</option>
+            {mesesDisponiveis.map(mes => (
+              <option key={mes} value={mes}>{formatMonth(mes)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="w-px h-8 bg-gray-300 hidden md:block"></div>
+        <button
+          onClick={handleGetInsights}
+          disabled={loadingInsights}
+          className={`flex items-center justify-center gap-2 px-4 py-2 rounded text-white font-medium transition w-full md:w-auto ${loadingInsights ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 shadow-sm'}`}
         >
-          <option value="">Todos os Meses (Geral)</option>
-          {mesesDisponiveis.map(mes => (
-            <option key={mes} value={mes}>{formatMonth(mes)}</option>
-          ))}
-        </select>
+          <span>✨</span> {loadingInsights ? 'Gerando Insights...' : 'Insights com IA'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -600,74 +371,58 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Histórico de Insights */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200 mb-8">
+        <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+          <span>📚</span> Histórico de Insights (IA)
+        </h2>
+        {historicoInsights.length > 0 ? (
+          <div className="space-y-4">
+            {historicoInsights.map(insight => (
+              <div key={insight.id} className="p-4 border border-indigo-100 bg-indigo-50 rounded-lg flex flex-col md:flex-row justify-between md:items-center gap-4">
+                <div>
+                  <h3 className="font-bold text-indigo-800">Período: {insight.periodo}</h3>
+                  <p className="text-sm text-gray-600">Gerado em: {new Date(insight.dataGeracao).toLocaleString('pt-BR')}</p>
+                  <p className="text-sm text-gray-700 mt-2 italic border-l-2 border-indigo-300 pl-2">
+                    "{insight.texto?.length > 200 ? insight.texto.substring(0, 200) + '...' : insight.texto}"
+                  </p>
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                  <button onClick={() => viewInsight(insight)} className="flex-1 md:flex-none bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition font-medium text-sm text-center">Visualizar</button>
+                  <button onClick={() => deleteInsight(insight.id)} className="flex-1 md:flex-none bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition font-medium text-sm text-center">Excluir</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">Nenhum insight salvo. Gere seu primeiro insight clicando no botão acima!</p>
+        )}
+      </div>
+
       <div className="flex flex-wrap gap-4">
         <Link href="/gastos" className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium">Gerenciar Gastos</Link>
         <Link href="/rendas" className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-medium">Gerenciar Rendas</Link>
-        <button onClick={handleExportExcel} className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-medium">
-          Exportar Excel (Dados)
-        </button>
-        <label className="bg-yellow-600 text-white px-6 py-3 rounded-lg hover:bg-yellow-700 transition font-medium cursor-pointer">
-          Importar Excel (Dados)
-          <input
-            type="file"
-            accept=".xlsx, .xls"
-            onChange={handleImportExcel}
-            className="hidden"
-          />
-        </label>
-        <label className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-medium cursor-pointer">
-          Importar Extrato (CSV)
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleImportExtratoCSV}
-            className="hidden"
-          />
-        </label>
       </div>
 
-      {/* Modal Mapeamento CSV */}
-      {isCsvModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-gray-800">Mapear Colunas do Extrato</h2>
-            <p className="text-sm text-gray-600 mb-4">Selecione quais colunas do seu arquivo correspondem aos campos essenciais do sistema.</p>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data (Ex: DATA_MOVIMENTACAO) *</label>
-              <select value={csvMapping.data} onChange={e => setCsvMapping({...csvMapping, data: e.target.value})} className="w-full p-2 border border-gray-300 rounded bg-white">
-                <option value="">-- Selecione --</option>
-                {csvHeaders.map(h => <option key={`data-${h}`} value={h}>{h}</option>)}
-              </select>
+      {/* Modal de Insights */}
+      {isInsightsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style={{ zIndex: 10000 }}>
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col m-4">
+            <div className="flex justify-between items-center mb-4 border-b pb-2">
+              <h2 className="text-2xl font-bold text-indigo-700 flex items-center gap-2">
+                <span>✨</span> Visão Inteligente
+              </h2>
             </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor (Ex: DEB_CRED / VALOR) *</label>
-              <select value={csvMapping.valor} onChange={e => setCsvMapping({...csvMapping, valor: e.target.value})} className="w-full p-2 border border-gray-300 rounded bg-white">
-                <option value="">-- Selecione --</option>
-                {csvHeaders.map(h => <option key={`valor-${h}`} value={h}>{h}</option>)}
-              </select>
+            <div className="overflow-y-auto pr-2 flex-1 text-gray-700 whitespace-pre-wrap leading-relaxed">
+              {aiInsights}
             </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descrição (Opcional)</label>
-              <select value={csvMapping.descricao} onChange={e => setCsvMapping({...csvMapping, descricao: e.target.value})} className="w-full p-2 border border-gray-300 rounded bg-white">
-                <option value="">-- Ignorar ou Selecionar --</option>
-                {csvHeaders.map(h => <option key={`desc-${h}`} value={h}>{h}</option>)}
-              </select>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo (Opcional: D/C, Débito/Crédito)</label>
-              <select value={csvMapping.tipo} onChange={e => setCsvMapping({...csvMapping, tipo: e.target.value})} className="w-full p-2 border border-gray-300 rounded bg-white">
-                <option value="">-- Automático ou Ignorar --</option>
-                {csvHeaders.map(h => <option key={`tipo-${h}`} value={h}>{h}</option>)}
-              </select>
-            </div>
-
-            <div className="flex gap-4">
-              <button onClick={handleConfirmMapping} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition w-full font-medium">Importar</button>
-              <button onClick={() => { setIsCsvModalOpen(false); setCsvHeaders([]); setCsvLines([]); }} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition w-full font-medium">Cancelar</button>
+            <div className="pt-4 border-t border-gray-200 mt-4 flex justify-end">
+              <button
+                onClick={() => setIsInsightsModalOpen(false)}
+                className="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700 transition font-medium"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>

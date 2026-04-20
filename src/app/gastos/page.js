@@ -1,5 +1,6 @@
 "use client";
 import GenerativeLanguageApi from '@/lib/generative_ai_api';
+import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -7,7 +8,10 @@ export default function Home() {
   const [gastos, setGastos] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [image, setImage] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const { runTask, isTaskRunning } = useBackgroundTask();
+  const loadingAi = isTaskRunning('ai-categorias-gastos');
 
   useEffect(() => {
     const storedGastos = JSON.parse(localStorage.getItem('gastos')) || [];
@@ -23,7 +27,6 @@ export default function Home() {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    setLoading(true);
 
     try {
       const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
@@ -48,23 +51,31 @@ export default function Home() {
         reader.readAsDataURL(image);
       });
 
-      // Chama a API do Gemini diretamente pelo navegador
-      const generativeApi = new GenerativeLanguageApi(apiKey);
-      const data = await generativeApi.uploadImageGenerateContent(base64String, image.type, catNames);
+      setIsModalOpen(false); // Fecha o modal imediatamente
 
-      if (data) {
-        const updatedGastos = [...gastos, data];
-        setGastos(updatedGastos);
-        localStorage.setItem('gastos', JSON.stringify(updatedGastos));
-        return
-      }
-      throw Error('Contrato invalido')
+      runTask(
+        `upload-image-${Date.now()}`,
+        'Processando cupom fiscal (IA)',
+        async () => {
+          const generativeApi = new GenerativeLanguageApi(apiKey);
+          const data = await generativeApi.uploadImageGenerateContent(base64String, image.type, catNames);
+          if (!data) throw new Error('Conteúdo inválido retornado pela IA');
+          return data;
+        },
+        (data) => {
+          setGastos((prevGastos) => {
+            const updatedGastos = [...prevGastos, data];
+            localStorage.setItem('gastos', JSON.stringify(updatedGastos));
+            return updatedGastos;
+          });
+        },
+        (error) => {
+          alert('Erro ao processar imagem: ' + error.message);
+        }
+      );
     } catch (error) {
-      console.error('Erro:', error);
+      console.error('[Gastos] Erro ao processar a imagem e comunicar com a IA:', error);
       alert('Erro ao processar imagem: ' + error.message);
-    } finally {
-      setLoading(false);
-      setIsModalOpen(false);
     }
   };
 
@@ -109,6 +120,68 @@ export default function Home() {
     document.body.removeChild(link);
   };
 
+  const handleSuggestCategories = async () => {
+    if (gastos.length === 0) return alert('Nenhum gasto cadastrado para analisar.');
+
+    try {
+      const config = JSON.parse(localStorage.getItem('configuracoes')) || {};
+      const apiKey = config.geminiApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+
+      if (!apiKey) {
+        throw new Error('Chave de API do Gemini não configurada. Defina na aba de Configurações.');
+      }
+
+      let catNames = [];
+      if (config.categoriasGastos && config.categoriasGastos.length > 0) {
+        catNames = typeof config.categoriasGastos[0] === 'string'
+          ? config.categoriasGastos
+          : config.categoriasGastos.map(c => c.nome);
+      }
+
+      runTask(
+        'ai-categorias-gastos',
+        'Analisando categorias de gastos (IA)',
+        async () => {
+          const generativeApi = new GenerativeLanguageApi(apiKey);
+          return await generativeApi.suggestCategories(gastos, catNames);
+        },
+        (suggestions) => {
+          if (suggestions && suggestions.length > 0) {
+            setAiSuggestions(suggestions.map(s => ({ ...s, accepted: true })));
+            setIsAiModalOpen(true);
+          } else {
+            alert('A IA não encontrou necessidades de alteração. Suas categorias parecem estar corretas!');
+          }
+        },
+        (error) => alert('Erro ao obter sugestões da IA: ' + error.message)
+      );
+    } catch (error) {
+      console.error('[Gastos] Erro ao obter sugestões de categorias da IA:', error);
+      alert('Erro ao obter sugestões da IA: ' + error.message);
+    }
+  };
+
+  const toggleSuggestion = (index) => {
+    const updated = [...aiSuggestions];
+    updated[index].accepted = !updated[index].accepted;
+    setAiSuggestions(updated);
+  };
+
+  const handleApplyAiSuggestions = () => {
+    setGastos((prevGastos) => {
+      const updatedGastos = [...prevGastos];
+      aiSuggestions.forEach(sug => {
+        if (sug.accepted && updatedGastos[sug.index]) {
+          updatedGastos[sug.index].categoria = sug.categoria_sugerida;
+        }
+      });
+      localStorage.setItem('gastos', JSON.stringify(updatedGastos));
+      return updatedGastos;
+    });
+    setIsAiModalOpen(false);
+    setAiSuggestions([]);
+  };
+
   const handleImportCSV = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -120,79 +193,84 @@ export default function Home() {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target.result;
-      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-      if (lines.length <= 1) return alert('O arquivo CSV parece estar vazio ou não possui dados válidos.');
+      try {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+        if (lines.length <= 1) return alert('O arquivo CSV parece estar vazio ou não possui dados válidos.');
 
-      const importedGastos = [];
-      let currentGastoId = null;
-      let currentGasto = null;
+        const importedGastos = [];
+        let currentGastoId = null;
+        let currentGasto = null;
 
-      // Função auxiliar para interpretar a linha CSV corretamente ignorando vírgulas entre aspas
-      const parseLine = (line) => {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"' && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            result.push(current);
-            current = '';
+        // Função auxiliar para interpretar a linha CSV corretamente ignorando vírgulas entre aspas
+        const parseLine = (line) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"' && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current);
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          result.push(current);
+          return result;
+        };
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = parseLine(lines[i]);
+          if (cols.length < 10) continue;
+
+          let idStr, data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr;
+          if (cols.length === 10) {
+            [idStr, data, apelido, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr] = cols;
+            categoria = '';
           } else {
-            current += char;
+            [idStr, data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr] = cols;
+          }
+
+          const id = parseInt(idStr, 10);
+
+          if (id !== currentGastoId) {
+            currentGastoId = id;
+            currentGasto = {
+              data: data,
+              apelido: apelido,
+              categoria: categoria,
+              total: parseFloat(totalStr) || 0,
+              produtos: []
+            };
+            importedGastos.push(currentGasto);
+          }
+
+          if (pNome || pCodigo) {
+            currentGasto.produtos.push({
+              nome: pNome,
+              codigo: pCodigo,
+              quantidade: parseFloat(pQtdStr) || 0,
+              unidade: pUnidade,
+              preco_unitario: parseFloat(pPrecoUniStr) || 0,
+              preco_total: parseFloat(pPrecoTotStr) || 0
+            });
           }
         }
-        result.push(current);
-        return result;
-      };
 
-      for (let i = 1; i < lines.length; i++) {
-        const cols = parseLine(lines[i]);
-        if (cols.length < 10) continue;
-
-        let idStr, data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr;
-        if (cols.length === 10) {
-          [idStr, data, apelido, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr] = cols;
-          categoria = '';
-        } else {
-          [idStr, data, apelido, categoria, totalStr, pNome, pCodigo, pQtdStr, pUnidade, pPrecoUniStr, pPrecoTotStr] = cols;
-        }
-
-        const id = parseInt(idStr, 10);
-
-        if (id !== currentGastoId) {
-          currentGastoId = id;
-          currentGasto = {
-            data: data,
-            apelido: apelido,
-            categoria: categoria,
-            total: parseFloat(totalStr) || 0,
-            produtos: []
-          };
-          importedGastos.push(currentGasto);
-        }
-
-        if (pNome || pCodigo) {
-          currentGasto.produtos.push({
-            nome: pNome,
-            codigo: pCodigo,
-            quantidade: parseFloat(pQtdStr) || 0,
-            unidade: pUnidade,
-            preco_unitario: parseFloat(pPrecoUniStr) || 0,
-            preco_total: parseFloat(pPrecoTotStr) || 0
-          });
-        }
+        setGastos(importedGastos);
+        localStorage.setItem('gastos', JSON.stringify(importedGastos));
+        alert('Base importada com sucesso!');
+        event.target.value = ''; // Limpa o input
+      } catch (error) {
+        console.error('[Gastos] Falha não tratada ao importar CSV:', error);
+        alert('Ocorreu um erro ao processar o arquivo CSV. Verifique o formato.');
       }
-
-      setGastos(importedGastos);
-      localStorage.setItem('gastos', JSON.stringify(importedGastos));
-      alert('Base importada com sucesso!');
-      event.target.value = ''; // Limpa o input
     };
     reader.readAsText(file);
   };
@@ -214,20 +292,12 @@ export default function Home() {
           Carregar Nota via Imagem
         </button>
         <button
-          onClick={handleExportCSV}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+          onClick={handleSuggestCategories}
+          disabled={loadingAi}
+          className={`text-white px-4 py-2 rounded transition ${loadingAi ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
         >
-          Exportar CSV
+          {loadingAi ? 'Analisando...' : 'Corrigir Categorias (IA)'}
         </button>
-        <label className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition cursor-pointer">
-          Importar CSV
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleImportCSV}
-            className="hidden"
-          />
-        </label>
       </div>
       <table className="w-full border-collapse border border-gray-300 bg-white">
         <thead>
@@ -286,11 +356,9 @@ export default function Home() {
               />
               <button
                 type="submit"
-                disabled={loading}
-                className={`w-full p-2 text-white rounded ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'
-                  }`}
+              className="w-full p-2 text-white rounded bg-purple-600 hover:bg-purple-700 font-medium"
               >
-                {loading ? 'Processando...' : 'Enviar'}
+              Enviar para Processamento em 2º Plano
               </button>
             </form>
             <button
@@ -299,6 +367,40 @@ export default function Home() {
             >
               Fechar
             </button>
+          </div>
+        </div>
+      )}
+
+      {isAiModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <h2 className="text-xl font-bold mb-2">Sugestões Inteligentes de Categoria</h2>
+            <p className="text-sm text-gray-600 mb-4">A IA analisou seus gastos e sugeriu as seguintes correções. Selecione quais deseja aplicar.</p>
+            <div className="space-y-4 mb-6 overflow-y-auto pr-2">
+              {aiSuggestions.map((sug, i) => {
+                const gastoOriginal = gastos[sug.index];
+                if (!gastoOriginal) return null;
+                return (
+                  <div key={i} className="flex items-start gap-4 p-3 border rounded bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={sug.accepted}
+                      onChange={() => toggleSuggestion(i)}
+                      className="mt-1 w-5 h-5 cursor-pointer accent-indigo-600"
+                    />
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800">{gastoOriginal.apelido || 'Sem apelido'} <span className="text-gray-500 font-normal text-sm">({gastoOriginal.data})</span></p>
+                      <p className="text-sm mt-1">De: <span className="line-through text-red-500">{gastoOriginal.categoria || 'Nenhuma'}</span> Para: <span className="font-bold text-green-600">{sug.categoria_sugerida}</span></p>
+                      <p className="text-xs text-gray-600 mt-2 bg-indigo-50 p-2 rounded border border-indigo-100"><span className="font-semibold text-indigo-800">Motivo:</span> {sug.motivo}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-4 pt-4 border-t border-gray-200 mt-auto">
+              <button onClick={handleApplyAiSuggestions} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition w-full font-medium">Aplicar Selecionados</button>
+              <button onClick={() => setIsAiModalOpen(false)} className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition w-full font-medium">Cancelar</button>
+            </div>
           </div>
         </div>
       )}

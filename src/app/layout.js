@@ -1,3 +1,4 @@
+import { BackgroundTaskProvider } from "@/providers/BackgroundTaskProvider";
 import localFont from "next/font/local";
 import Image from 'next/image';
 import Link from "next/link";
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased max-h-screen flex flex-col`}
         >
+      <BackgroundTaskProvider>
           <header>
             <nav className="bg-blue-600 border-gray-200 px-4 lg:px-6 py-2.5">
               <div className="flex flex-wrap justify-between items-center mx-auto max-w-screen-xl">
@@ -42,12 +44,14 @@ export default function RootLayout({ children }) {
                   <Link href="/" className="text-white hover:text-gray-200 font-medium transition">Dashboard</Link>
                   <Link href="/gastos" className="text-white hover:text-gray-200 font-medium transition">Gastos</Link>
                   <Link href="/rendas" className="text-white hover:text-gray-200 font-medium transition">Rendas</Link>
+                  <Link href="/importar-exportar" className="text-white hover:text-gray-200 font-medium transition">Importar/Exportar</Link>
                   <Link href="/configuracoes" className="text-white hover:text-gray-200 font-medium transition">Configurações</Link>
                 </div>
               </div>
             </nav>
           </header>
           <main className="bg-gray-100 text-gray-800">{children}</main>
+      </BackgroundTaskProvider>
         </body>
       </html>
     </>

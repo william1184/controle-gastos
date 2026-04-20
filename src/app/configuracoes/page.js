@@ -23,13 +23,14 @@ export default function Configuracoes() {
       { nome: 'Saúde', tipo: 'Variável' },
       { nome: 'Educação', tipo: 'Fixo' },
       { nome: 'Lazer', tipo: 'Variável' },
+      { nome: 'Investimentos', tipo: 'Variável' },
       { nome: 'Outros', tipo: 'Variável' }
     ];
     if (catGastos.length > 0 && typeof catGastos[0] === 'string') {
       catGastos = catGastos.map(c => ({ nome: c, tipo: 'Variável' }));
     }
     setCategoriasGastos(catGastos);
-    setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Presente']);
+    setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
   }, []);
 
   const handleSave = () => {
@@ -69,6 +70,7 @@ export default function Configuracoes() {
         if (config.categoriasRendas) setCategoriasRendas(config.categoriasRendas);
         alert('Configurações importadas com sucesso! Não se esqueça de salvá-las.');
       } catch (error) {
+        console.error('[Configuracoes] Erro ao ler e fazer o parse do JSON importado:', error);
         alert('Erro ao importar o arquivo JSON. Verifique o formato do arquivo.');
       }
     };
