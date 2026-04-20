@@ -18,7 +18,7 @@ class GenerativeLanguageApi {
     this.genAI = new GoogleGenerativeAI(this.apiKey);
   }
 
-  async uploadImageGenerateContent(imageBase64, mimeType, categoriasGastos = []) {
+  async uploadImageGenerateContent(imageBase64, mimeType, categoriasSaidas = []) {
     const filePart1 = fileToGenerativePart(imageBase64, mimeType);
 
     const imageParts = [filePart1];
@@ -28,7 +28,7 @@ class GenerativeLanguageApi {
     });
     const hoje = new Date().toISOString().split("T")[0];
 
-    const categoriasText = categoriasGastos.length > 0 ? categoriasGastos.join(", ") : "Alimentação, Transporte, Saúde, Educação, Lazer, Outros";
+    const categoriasText = categoriasSaidas.length > 0 ? categoriasSaidas.join(", ") : "Alimentação, Transporte, Saúde, Educação, Lazer, Outros";
 
     const prompt = `
     Você é uma IA especializada em leitura e extração de informações de cupons fiscais. Sua tarefa é analisar o texto de um cupom fiscal e retornar as informações no formato JSON especificado abaixo. Caso alguma informação não seja encontrada no cupom, insira o valor 'Nao encontrado'. Certifique-se de seguir o formato JSON fornecido:
@@ -87,22 +87,22 @@ class GenerativeLanguageApi {
     return parsedResult;
   }
 
-  async suggestCategories(gastos, categoriasGastos = []) {
+  async suggestCategories(saidas, categoriasSaidas = []) {
     const model = this.genAI.getGenerativeModel({
       model: "gemini-flash-latest",
     });
 
-    if (categoriasGastos.length === 0) {
+    if (categoriasSaidas.length === 0) {
       throw new Error("Lista de categorias vazia.");
     }
 
-    const categoriasText = categoriasGastos.join(", ");
+    const categoriasText = categoriasSaidas.join(", ");
 
     const prompt = `
     Você é um assistente financeiro especialista em organizar finanças pessoais e empresariais.
     Sua tarefa é analisar uma lista de despesas e sugerir a categoria e o tipo de custo mais adequados para cada uma.
     Categorias disponíveis: ${categoriasText}.
-    Tipos de custo: 'Fixo' (gastos recorrentes e previsíveis como aluguel, internet, seguros) ou 'Variável' (gastos que oscilam como lazer, alimentação fora, compras impulsivas).
+    Tipos de custo: 'Fixo' (saidas recorrentes e previsíveis como aluguel, internet, seguros) ou 'Variável' (saidas que oscilam como lazer, alimentação fora, compras impulsivas).
 
     Analise a lista fornecida em formato JSON e sugira:
     1. A categoria mais adequada (usando estritamente a lista de categorias disponíveis).
@@ -122,7 +122,7 @@ class GenerativeLanguageApi {
     Se não houver sugestões pertinentes, retorne um array vazio [].
     
     Despesas:
-    ${JSON.stringify(gastos.map((g, i) => ({ index: i, apelido: g.apelido, categoria_atual: g.categoria, tipo_custo_atual: g.tipoCusto, total: g.total })))}
+    ${JSON.stringify(saidas.map((g, i) => ({ index: i, apelido: g.apelido, categoria_atual: g.categoria, tipo_custo_atual: g.tipoCusto, total: g.total })))}
     `;
 
     const result = await model.generateContent(prompt);
@@ -131,24 +131,24 @@ class GenerativeLanguageApi {
     return JSON.parse(text);
   }
 
-  async suggestCategoriesRendas(rendas, categoriasRendas = []) {
+  async suggestCategoriesEntradas(entradas, categoriasEntradas = []) {
     const model = this.genAI.getGenerativeModel({
       model: "gemini-flash-latest",
     });
 
-    const categoriasText = categoriasRendas.length > 0 ? categoriasRendas.join(", ") : "Salário, Freelance, Investimentos, Rendimentos, Outros";
+    const categoriasText = categoriasEntradas.length > 0 ? categoriasEntradas.join(", ") : "Salário, Freelance, Investimentos, Rendimentos, Outros";
 
     const prompt = `
-    Você é um assistente financeiro especialista em categorizar rendas e ganhos.
-    Eu tenho uma lista de rendas e as seguintes categorias disponíveis: ${categoriasText}.
-    Analise a lista de rendas fornecida em formato JSON e sugira a categoria mais adequada para cada uma, usando estritamente a lista de categorias disponíveis. Recomende alteração se a categoria atual parecer incorreta, não fizer sentido para a descrição, estiver vazia ou for 'Outros'.
+    Você é um assistente financeiro especialista em categorizar entradas e ganhos.
+    Eu tenho uma lista de entradas e as seguintes categorias disponíveis: ${categoriasText}.
+    Analise a lista de entradas fornecida em formato JSON e sugira a categoria mais adequada para cada uma, usando estritamente a lista de categorias disponíveis. Recomende alteração se a categoria atual parecer incorreta, não fizer sentido para a descrição, estiver vazia ou for 'Outros'.
     Retorne APENAS um array JSON válido, sem formatação Markdown (sem \`\`\`json), no seguinte formato:
     [
       { "index": 0, "categoria_sugerida": "NomeDaCategoria", "motivo": "Breve justificativa para a mudança" }
     ]
     Se não houver sugestões pertinentes (ou seja, se todas as categorias atuais parecerem corretas), retorne um array vazio [].
-    Rendas:
-    ${JSON.stringify(rendas.map((r, i) => ({ index: i, descricao: r.descricao, categoria_atual: r.categoria, valor: r.valor })))}
+    Entradas:
+    ${JSON.stringify(entradas.map((r, i) => ({ index: i, descricao: r.descricao, categoria_atual: r.categoria, valor: r.valor })))}
     `;
 
     const result = await model.generateContent(prompt);
@@ -164,7 +164,7 @@ class GenerativeLanguageApi {
 
     let usuariosInfo = "";
     if (resumoOrcamento.usuarios && resumoOrcamento.usuarios.length > 0) {
-      usuariosInfo = "Usuários da Família/Casa:\n" + resumoOrcamento.usuarios.map(u => `- Nome: ${u.nome}, Renda: R$ ${u.renda}, Data de Nascimento: ${u.dataNascimento}`).join("\n") + "\nConsidere esses usuários (idade, renda individual, momento de vida) ao fornecer dicas altamente direcionadas para a realidade da família.\n";
+      usuariosInfo = "Usuários da Família/Casa:\n" + resumoOrcamento.usuarios.map(u => `- Nome: ${u.nome}, Entrada: R$ ${u.entrada}, Data de Nascimento: ${u.dataNascimento}`).join("\n") + "\nConsidere esses usuários (idade, entrada individual, momento de vida) ao fornecer dicas altamente direcionadas para a realidade da família.\n";
     }
 
     const prompt = `
@@ -172,21 +172,21 @@ class GenerativeLanguageApi {
 
     ${usuariosInfo}
     Resumo do período (${resumoOrcamento.periodo}):
-    - Total de Rendas: R$ ${resumoOrcamento.totalRendas}
-    - Total de Gastos: R$ ${resumoOrcamento.totalGastos}
+    - Total de Entradas: R$ ${resumoOrcamento.totalEntradas}
+    - Total de Saidas: R$ ${resumoOrcamento.totalSaidas}
     - Saldo: R$ ${resumoOrcamento.saldo}
     - Despesas Fixas: R$ ${resumoOrcamento.despesasFixas}
     - Despesas Variáveis: R$ ${resumoOrcamento.despesasVariaveis}
 
-    Gastos por Categoria:
-    ${JSON.stringify(resumoOrcamento.gastosPorCategoria)}
+    Saidas por Categoria:
+    ${JSON.stringify(resumoOrcamento.saidasPorCategoria)}
 
-    Rendas por Categoria:
-    ${JSON.stringify(resumoOrcamento.rendasPorCategoria)}
+    Entradas por Categoria:
+    ${JSON.stringify(resumoOrcamento.entradasPorCategoria)}
 
     Por favor, forneça dicas com:
     - Avaliação geral do saldo.
-    - Alertas sobre categorias onde os gastos parecem altos.
+    - Alertas sobre categorias onde os saidas parecem altos.
     - Dicas práticas de onde reduzir (especialmente em despesas variáveis).
     - Evite formatação complexa em Markdown, utilize apenas texto simples com emojis, quebras de linha e tópicos.
     `;
@@ -195,19 +195,19 @@ class GenerativeLanguageApi {
     return result.response.text();
   }
 
-  async suggestBudgetLimits(historicoGastos, categorias) {
+  async suggestBudgetLimits(historicoSaidas, categorias) {
     const model = this.genAI.getGenerativeModel({
       model: "gemini-flash-latest",
     });
 
     const prompt = `
-    Você é um assistente financeiro inteligente. Com base no histórico de gastos dos últimos meses, sugira limites de orçamento realistas para o próximo mês.
+    Você é um assistente financeiro inteligente. Com base no histórico de saidas dos últimos meses, sugira limites de orçamento realistas para o próximo mês.
     
-    Categorias e histórico (Média de gastos):
-    ${JSON.stringify(historicoGastos)}
+    Categorias e histórico (Média de saidas):
+    ${JSON.stringify(historicoSaidas)}
 
     Considere:
-    1. Se o gasto é recorrente.
+    1. Se o saida é recorrente.
     2. Se houve picos incomuns.
     3. Tente sugerir um limite que incentive a economia (ex: 90% da média se for variável, 100% se for fixo).
 

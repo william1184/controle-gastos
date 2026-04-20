@@ -1,16 +1,16 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { getGastos, deleteGasto, updateGastoCategoryAndType } from '@/lib/gastosDb';
-import { getRendas, deleteRenda, updateRendaCategory } from '@/lib/rendasDb';
-import { getContas } from '@/lib/contaDb';
-import { getCategorias } from '@/lib/categoriaDb';
-import { getConfiguracoes } from '@/lib/storeDb';
-import GenerativeLanguageApi from '@/lib/generative_ai_api';
-import Link from 'next/link';
 import ImportadorCSV from '@/components/ImportadorCSV';
-import { useSearchParams } from 'next/navigation';
+import { getCategorias } from '@/lib/categoriaDb';
+import { getContas } from '@/lib/contaDb';
+import { deleteEntrada, getEntradas, updateEntradaCategory } from '@/lib/entradasDb';
+import GenerativeLanguageApi from '@/lib/generative_ai_api';
+import { deleteSaida, getSaidas, updateSaidaCategoryAndType } from '@/lib/saidasDb';
+import { getConfiguracoes } from '@/lib/storeDb';
 import { getTagsByTransacao } from '@/lib/tagDb';
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function TransacoesPage() {
   const searchParams = useSearchParams();
@@ -19,8 +19,8 @@ export default function TransacoesPage() {
   const [transacoes, setTransacoes] = useState([]);
   const [activeTab, setActiveTab] = useState(initialTab); // todas, entradas, saidas, importar
   const [contas, setContas] = useState([]);
-  const [categoriasGastos, setCategoriasGastos] = useState([]);
-  const [categoriasRendas, setCategoriasRendas] = useState([]);
+  const [categoriasSaidas, setCategoriasSaidas] = useState([]);
+  const [categoriasEntradas, setCategoriasEntradas] = useState([]);
   const [filters, setFilters] = useState({
     categoria: '',
     accountId: '',
@@ -39,15 +39,15 @@ export default function TransacoesPage() {
 
   const loadData = async () => {
     const [gs, rs, cs, catsG, catsR] = await Promise.all([
-      getGastos(filters),
-      getRendas(filters),
+      getSaidas(filters),
+      getEntradas(filters),
       getContas(),
       getCategorias('saida'),
       getCategorias('entrada')
     ]);
 
     // Format and merge
-    const normalizedGastos = await Promise.all(gs.map(async g => ({
+    const normalizedSaidas = await Promise.all(gs.map(async g => ({
       ...g,
       tipo: 'saida',
       valor: g.total,
@@ -55,14 +55,14 @@ export default function TransacoesPage() {
       tags: await getTagsByTransacao(g.id)
     })));
 
-    const normalizedRendas = await Promise.all(rs.map(async r => ({
+    const normalizedEntradas = await Promise.all(rs.map(async r => ({
       ...r,
       tipo: 'entrada',
       tags: await getTagsByTransacao(r.id)
     })));
 
-    let merged = [...normalizedGastos, ...normalizedRendas];
-    
+    let merged = [...normalizedSaidas, ...normalizedEntradas];
+
     // Sort by date desc
     merged.sort((a, b) => new Date(b.data) - new Date(a.data));
 
@@ -72,8 +72,8 @@ export default function TransacoesPage() {
 
     setTransacoes(merged);
     setContas(cs);
-    setCategoriasGastos(catsG);
-    setCategoriasRendas(catsR);
+    setCategoriasSaidas(catsG);
+    setCategoriasEntradas(catsR);
   };
 
   useEffect(() => {
@@ -87,8 +87,8 @@ export default function TransacoesPage() {
 
   const handleDelete = async (t) => {
     if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
-    if (t.tipo === 'saida') await deleteGasto(t.id);
-    else await deleteRenda(t.id);
+    if (t.tipo === 'saida') await deleteSaida(t.id);
+    else await deleteEntrada(t.id);
     loadData();
   };
 
@@ -99,8 +99,8 @@ export default function TransacoesPage() {
       return;
     }
 
-    const gastosParaCategorizar = transacoes.filter(t => t.tipo === 'saida');
-    if (gastosParaCategorizar.length === 0) {
+    const saidasParaCategorizar = transacoes.filter(t => t.tipo === 'saida');
+    if (saidasParaCategorizar.length === 0) {
       alert('Nenhuma saída encontrada para categorizar.');
       return;
     }
@@ -111,8 +111,8 @@ export default function TransacoesPage() {
       async () => {
         const api = new GenerativeLanguageApi(config.geminiApiKey);
         return await api.suggestCategories(
-          gastosParaCategorizar, 
-          categoriasGastos.map(c => c.nome)
+          saidasParaCategorizar,
+          categoriasSaidas.map(c => c.nome)
         );
       },
       (suggestions) => {
@@ -122,7 +122,7 @@ export default function TransacoesPage() {
           setAiSuggestions(suggestions);
           setSelectedIndices(new Set(suggestions.map((_, i) => i)));
           setCurrentCategorizationType('saida');
-          setCurrentTransactionsForAI(gastosParaCategorizar);
+          setCurrentTransactionsForAI(saidasParaCategorizar);
           setShowSuggestionsModal(true);
         }
       },
@@ -137,8 +137,8 @@ export default function TransacoesPage() {
       return;
     }
 
-    const rendasParaCategorizar = transacoes.filter(t => t.tipo === 'entrada');
-    if (rendasParaCategorizar.length === 0) {
+    const entradasParaCategorizar = transacoes.filter(t => t.tipo === 'entrada');
+    if (entradasParaCategorizar.length === 0) {
       alert('Nenhuma entrada encontrada para categorizar.');
       return;
     }
@@ -148,9 +148,9 @@ export default function TransacoesPage() {
       'Categorizando Entradas com IA',
       async () => {
         const api = new GenerativeLanguageApi(config.geminiApiKey);
-        return await api.suggestCategoriesRendas(
-          rendasParaCategorizar, 
-          categoriasRendas.map(c => c.nome)
+        return await api.suggestCategoriesEntradas(
+          entradasParaCategorizar,
+          categoriasEntradas.map(c => c.nome)
         );
       },
       (suggestions) => {
@@ -160,7 +160,7 @@ export default function TransacoesPage() {
           setAiSuggestions(suggestions);
           setSelectedIndices(new Set(suggestions.map((_, i) => i)));
           setCurrentCategorizationType('entrada');
-          setCurrentTransactionsForAI(rendasParaCategorizar);
+          setCurrentTransactionsForAI(entradasParaCategorizar);
           setShowSuggestionsModal(true);
         }
       },
@@ -177,9 +177,9 @@ export default function TransacoesPage() {
         const original = currentTransactionsForAI[sug.index];
         if (original) {
           if (currentCategorizationType === 'saida') {
-            await updateGastoCategoryAndType(original.id, sug.categoria_sugerida, sug.tipo_custo_sugerido);
+            await updateSaidaCategoryAndType(original.id, sug.categoria_sugerida, sug.tipo_custo_sugerido);
           } else {
-            await updateRendaCategory(original.id, sug.categoria_sugerida);
+            await updateEntradaCategory(original.id, sug.categoria_sugerida);
           }
           count++;
         }
@@ -218,11 +218,11 @@ export default function TransacoesPage() {
           <p className="text-gray-500">Histórico unificado de movimentações financeiras.</p>
         </div>
         <div className="flex gap-3">
-          <Link href="/gastos/nova" className="px-5 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all border border-red-100">
-            - Novo Gasto
+          <Link href="/transacoes/saidas/nova" className="px-5 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all border border-red-100">
+            - Saída
           </Link>
-          <Link href="/rendas/nova" className="px-5 py-2.5 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-all border border-green-100">
-            + Nova Renda
+          <Link href="/transacoes/entradas/nova" className="px-5 py-2.5 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-all border border-green-100">
+            + Entrada
           </Link>
         </div>
       </div>
@@ -234,11 +234,10 @@ export default function TransacoesPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all capitalize ${
-                activeTab === tab 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                  : 'text-gray-500 hover:bg-gray-50'
-              }`}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all capitalize ${activeTab === tab
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                : 'text-gray-500 hover:bg-gray-50'
+                }`}
             >
               {tab}
             </button>
@@ -247,7 +246,7 @@ export default function TransacoesPage() {
 
         <div className="flex gap-2">
           {(activeTab === 'todas' || activeTab === 'entradas') && (
-            <button 
+            <button
               onClick={handleAICategorizeEntradas}
               disabled={isCategorizing}
               className="px-4 py-2 bg-green-50 text-green-700 rounded-xl text-xs font-black uppercase tracking-wider border border-green-200 hover:bg-green-100 transition-all disabled:opacity-50"
@@ -256,7 +255,7 @@ export default function TransacoesPage() {
             </button>
           )}
           {(activeTab === 'todas' || activeTab === 'saidas') && (
-            <button 
+            <button
               onClick={handleAICategorizeSaidas}
               disabled={isCategorizing}
               className="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-xs font-black uppercase tracking-wider border border-red-200 hover:bg-red-100 transition-all disabled:opacity-50"
@@ -280,15 +279,15 @@ export default function TransacoesPage() {
                 {activeTab === 'todas' && (
                   <>
                     <optgroup label="Entradas">
-                      {categoriasRendas.map(c => <option key={`in-${c.id}`} value={c.nome}>{c.nome}</option>)}
+                      {categoriasEntradas.map(c => <option key={`in-${c.id}`} value={c.nome}>{c.nome}</option>)}
                     </optgroup>
                     <optgroup label="Saídas">
-                      {categoriasGastos.map(c => <option key={`out-${c.id}`} value={c.nome}>{c.nome}</option>)}
+                      {categoriasSaidas.map(c => <option key={`out-${c.id}`} value={c.nome}>{c.nome}</option>)}
                     </optgroup>
                   </>
                 )}
-                {activeTab === 'entradas' && categoriasRendas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                {activeTab === 'saidas' && categoriasGastos.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                {activeTab === 'entradas' && categoriasEntradas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                {activeTab === 'saidas' && categoriasSaidas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
               </select>
             </div>
             <div>
@@ -307,12 +306,12 @@ export default function TransacoesPage() {
               <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
             </div>
             <div className="lg:col-span-2 flex gap-2">
-               <button 
-                 onClick={() => setFilters({ categoria: '', accountId: '', startDate: '', endDate: '' })}
-                 className="px-4 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-900 transition-all"
-               >
-                 Limpar Filtros
-               </button>
+              <button
+                onClick={() => setFilters({ categoria: '', accountId: '', startDate: '', endDate: '' })}
+                className="px-4 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-900 transition-all"
+              >
+                Limpar Filtros
+              </button>
             </div>
           </div>
 
@@ -343,20 +342,20 @@ export default function TransacoesPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${t.tipo === 'entrada' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                             {t.tipo === 'entrada' ? '↗' : '↘'}
+                            {t.tipo === 'entrada' ? '↗' : '↘'}
                           </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm font-bold text-gray-900">{t.descricao || '-'}</span>
-                          {t.tags && t.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {t.tags.map(tag => (
-                                <span key={tag.id} className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-500 text-[8px] font-black uppercase tracking-wider border border-blue-100">
-                                  {tag.nome}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-bold text-gray-900">{t.descricao || '-'}</span>
+                            {t.tags && t.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {t.tags.map(tag => (
+                                  <span key={tag.id} className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-500 text-[8px] font-black uppercase tracking-wider border border-blue-100">
+                                    {tag.nome}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -370,13 +369,13 @@ export default function TransacoesPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Link 
-                            href={t.tipo === 'saida' ? `/gastos/editar/${t.id}` : `/rendas/editar?id=${t.id}`}
+                          <Link
+                            href={t.tipo === 'saida' ? `/transacoes/saidas/editar/${t.id}` : `/transacoes/entradas/editar?id=${t.id}`}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                           >
                             ✏️
                           </Link>
-                          <button 
+                          <button
                             onClick={() => handleDelete(t)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
                           >
@@ -410,9 +409,9 @@ export default function TransacoesPage() {
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-10">
-                      <input 
-                        type="checkbox" 
-                        checked={selectedIndices.size === aiSuggestions.length} 
+                      <input
+                        type="checkbox"
+                        checked={selectedIndices.size === aiSuggestions.length}
                         onChange={toggleSelectAll}
                         className="w-4 h-4 rounded text-blue-600"
                       />
@@ -429,9 +428,9 @@ export default function TransacoesPage() {
                     return (
                       <tr key={i} className={`hover:bg-gray-50 transition-colors ${selectedIndices.has(i) ? 'bg-blue-50/20' : ''}`}>
                         <td className="px-4 py-4">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedIndices.has(i)} 
+                          <input
+                            type="checkbox"
+                            checked={selectedIndices.has(i)}
                             onChange={() => toggleSelection(i)}
                             className="w-4 h-4 rounded text-blue-600"
                           />
@@ -469,13 +468,13 @@ export default function TransacoesPage() {
             </div>
 
             <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
-              <button 
+              <button
                 onClick={() => setShowSuggestionsModal(false)}
                 className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 transition-all"
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={applySelectedSuggestions}
                 disabled={isCategorizing || selectedIndices.size === 0}
                 className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-all disabled:opacity-50"

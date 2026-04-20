@@ -5,7 +5,7 @@ export async function getUsuarios(entidadeId) {
   const db = getDb();
   const res = db.exec("SELECT * FROM usuario WHERE entidade_id = ? AND deleted_at IS NULL", [entidadeId]);
   if (!res[0]) return [];
-  
+
   return res[0].values.map(row => {
     const obj = {};
     res[0].columns.forEach((col, i) => {
@@ -21,12 +21,12 @@ export async function addUsuario(usuario) {
   await initDb();
   const db = getDb();
   const now = new Date().toISOString();
-  
+
   db.run(`
-    INSERT INTO usuario (nome, renda, data_nascimento, entidade_id, created_at)
+    INSERT INTO usuario (nome, entrada, data_nascimento, entidade_id, created_at)
     VALUES (?, ?, ?, ?, ?)
-  `, [usuario.nome, usuario.renda || 0, usuario.dataNascimento || null, usuario.entidade_id, now]);
-  
+  `, [usuario.nome, usuario.entrada || 0, usuario.dataNascimento || null, usuario.entidade_id, now]);
+
   const res = db.exec("SELECT last_insert_rowid()");
   return res[0].values[0][0];
 }
@@ -35,19 +35,19 @@ export async function updateUsuario(id, data) {
   await initDb();
   const db = getDb();
   const now = new Date().toISOString();
-  
+
   db.run(`
     UPDATE usuario 
-    SET nome = ?, renda = ?, data_nascimento = ?, updated_at = ?
+    SET nome = ?, entrada = ?, data_nascimento = ?, updated_at = ?
     WHERE id = ?
-  `, [data.nome, data.renda || 0, data.dataNascimento || null, now, id]);
+  `, [data.nome, data.entrada || 0, data.dataNascimento || null, now, id]);
 }
 
 export async function deleteUsuario(id) {
   await initDb();
   const db = getDb();
   const now = new Date().toISOString();
-  
+
   db.run(`
     UPDATE usuario 
     SET deleted_at = ?
@@ -59,12 +59,12 @@ export async function getActiveUsuario() {
   if (typeof window === 'undefined') return null;
   const id = localStorage.getItem('activeUsuarioId');
   if (!id) return null;
-  
+
   await initDb();
   const db = getDb();
   const res = db.exec("SELECT * FROM usuario WHERE id = ?", [id]);
   if (!res[0]) return null;
-  
+
   const row = res[0].values[0];
   const obj = {};
   res[0].columns.forEach((col, i) => {

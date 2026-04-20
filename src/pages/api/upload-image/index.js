@@ -28,16 +28,16 @@ export default async function handler(req, res) {
         console.error('[API upload-image] Erro ao processar o formulário de upload:', err);
         return res.status(500).json({ error: 'Erro ao processar a imagem' });
       }
-      
+
       const apiKeyClient = fields.apiKey ? fields.apiKey[0] : null;
-      const categoriasGastos = fields.categoriasGastos ? JSON.parse(fields.categoriasGastos[0]) : [];
+      const categoriasSaidas = fields.categoriasSaidas ? JSON.parse(fields.categoriasSaidas[0]) : [];
 
       const imagePath = files.image[0].filepath;
 
       const apiKeyToUse = apiKeyClient || apiKey;
       const generativeApi = new GenerativeLanguageApi(apiKeyToUse);
       try {
-        const json = await generativeApi.uploadImageGenerateContent(imagePath, categoriasGastos);
+        const json = await generativeApi.uploadImageGenerateContent(imagePath, categoriasSaidas);
 
         // Excluir o arquivo após o processamento bem-sucedido
         fs.unlink(imagePath, (unlinkErr) => {

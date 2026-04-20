@@ -1,7 +1,7 @@
-import { getItens, updateItem, deleteItem } from '@/lib/itensDb';
-import { addGasto } from '@/lib/gastosDb';
 import { initDb } from '@/lib/db';
 import { addEntidade, setActiveEntidade } from '@/lib/entidadeDb';
+import { deleteItem, getItens } from '@/lib/itensDb';
+import { addSaida } from '@/lib/saidasDb';
 import { addUsuario, setActiveUsuario } from '@/lib/usuarioDb';
 
 describe('itensDb Service', () => {
@@ -10,18 +10,18 @@ describe('itensDb Service', () => {
 
   beforeAll(async () => {
     await initDb();
-    
+
     // Setup test entity and user
     entidadeId = await addEntidade({ nome: 'Entidade Teste Itens' });
     setActiveEntidade(entidadeId);
-    
+
     usuarioId = await addUsuario({ nome: 'User Teste Itens', entidade_id: entidadeId });
     await setActiveUsuario(usuarioId);
   });
 
   test('should retrieve items from transactions in the current entity', async () => {
     // Add a transaction with items
-    const gasto = {
+    const saida = {
       data: '2026-04-20',
       apelido: 'Compra Teste',
       categoria: 'Alimentação',
@@ -32,12 +32,12 @@ describe('itensDb Service', () => {
         { nome: 'Feijão 1kg', quantidade: 2, unidade: 'un', preco_unitario: 10.00, preco_total: 20.00 }
       ]
     };
-    
-    await addGasto(gasto);
-    
+
+    await addSaida(saida);
+
     const items = await getItens();
     expect(items.length).toBeGreaterThanOrEqual(2);
-    
+
     const itemNames = items.map(i => i.nome);
     expect(itemNames).toContain('Arroz 5kg');
     expect(itemNames).toContain('Feijão 1kg');
@@ -52,9 +52,9 @@ describe('itensDb Service', () => {
   test('should delete an item', async () => {
     const allItems = await getItens();
     const itemToDelete = allItems[0];
-    
+
     await deleteItem(itemToDelete.id);
-    
+
     const remainingItems = await getItens();
     expect(remainingItems.find(i => i.id === itemToDelete.id)).toBeUndefined();
   });

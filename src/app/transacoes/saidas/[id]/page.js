@@ -1,9 +1,9 @@
 "use client";
-import { getGastoById } from '@/lib/gastosDb';
+import { getSaidaById } from '@/lib/saidasDb';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function ConsultaCompra() {
+export default function ConsultaSaida() {
   const [produtos, setProdutos] = useState([]);
   const [data, setData] = useState('');
   const [apelido, setApelido] = useState(''); // Estado para o apelido
@@ -14,12 +14,12 @@ export default function ConsultaCompra() {
   useEffect(() => {
     const loadData = async () => {
       if (id) {
-        const gasto = await getGastoById(Number(id));
-        if (gasto) {
-          setProdutos(gasto.produtos || []);
-          setData(gasto.data);
-          setApelido(gasto.apelido || '');
-          setTotal(gasto.total);
+        const saida = await getSaidaById(Number(id));
+        if (saida) {
+          setProdutos(saida.produtos || []);
+          setData(saida.data);
+          setApelido(saida.apelido || '');
+          setTotal(saida.total);
         }
       }
     };
@@ -32,7 +32,7 @@ export default function ConsultaCompra() {
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Consulta de Compra</h1>
+      <h1 className="text-3xl font-bold mb-6">Consulta de Saida</h1>
       <div className="mb-4">
         <label className="block text-sm font-medium">Apelido</label>
         <p className="w-full p-2 border rounded bg-gray-200">{apelido}</p>
@@ -65,7 +65,7 @@ export default function ConsultaCompra() {
       </table>
       <div className="mt-4">
         <p className="text-lg font-bold">
-          <strong>Total da Compra:</strong> R$ {total.toFixed(2)}
+          <strong>Total da Saida:</strong> R$ {total.toFixed(2)}
         </p>
       </div>
       <div className="mt-4">

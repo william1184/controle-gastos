@@ -28,32 +28,32 @@ export async function setConfiguracoes(config) {
 }
 
 // Categorias
-export async function getCategoriasGastos() {
+export async function getCategoriasSaidas() {
   const config = await getConfiguracoes();
-  let cats = config.categoriasGastos || ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Outros'];
+  let cats = config.categoriasSaidas || ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Outros'];
   if (cats.length > 0 && typeof cats[0] === 'object') {
     cats = cats.map(c => c.nome);
   }
   return cats;
 }
 
-export async function setCategoriasGastos(categorias) {
+export async function setCategoriasSaidas(categorias) {
   const config = await getConfiguracoes();
-  await setConfiguracoes({ ...config, categoriasGastos: categorias });
+  await setConfiguracoes({ ...config, categoriasSaidas: categorias });
 }
 
-export async function getCategoriasRendas() {
+export async function getCategoriasEntradas() {
   const config = await getConfiguracoes();
-  let cats = config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
+  let cats = config.categoriasEntradas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros'];
   if (cats.length > 0 && typeof cats[0] === 'object') {
     cats = cats.map(c => c.nome);
   }
   return cats;
 }
 
-export async function setCategoriasRendas(categorias) {
+export async function setCategoriasEntradas(categorias) {
   const config = await getConfiguracoes();
-  await setConfiguracoes({ ...config, categoriasRendas: categorias });
+  await setConfiguracoes({ ...config, categoriasEntradas: categorias });
 }
 
 export async function getHistoricoInsights() {

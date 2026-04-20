@@ -1,18 +1,18 @@
 "use client";
-import { getConfiguracoes, setConfiguracoes } from '@/lib/storeDb';
 import { getActiveEntidade, updateEntidade } from '@/lib/entidadeDb';
 import { syncDatabase } from '@/lib/googleDriveSync';
+import { getConfiguracoes, setConfiguracoes } from '@/lib/storeDb';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import packageJson from '../../../package.json';
 
 export default function Configuracoes() {
   const [geminiApiKey, setGeminiApiKey] = useState('');
-  const [categoriasGastos, setCategoriasGastos] = useState([]);
-  const [categoriasRendas, setCategoriasRendas] = useState([]);
+  const [categoriasSaidas, setCategoriasSaidas] = useState([]);
+  const [categoriasEntradas, setCategoriasEntradas] = useState([]);
 
-  const [novoGasto, setNovoGasto] = useState('');
-  const [novaRenda, setNovaRenda] = useState('');
+  const [novoSaida, setNovoSaida] = useState('');
+  const [novaEntrada, setNovaEntrada] = useState('');
 
   // 13.1 Geral
   const [entidadeId, setEntidadeId] = useState(null);
@@ -24,7 +24,7 @@ export default function Configuracoes() {
   const [formatoData, setFormatoData] = useState('DD/MM/YYYY');
 
   // 13.3 Labels
-  const [labels, setLabels] = useState({ gasto: 'Gasto', renda: 'Renda', conta: 'Conta' });
+  const [labels, setLabels] = useState({ saida: 'Saida', entrada: 'Entrada', conta: 'Conta' });
 
   // 13.4 Integrações
   const [googleDriveClientId, setGoogleDriveClientId] = useState('');
@@ -43,12 +43,12 @@ export default function Configuracoes() {
 
       setGeminiApiKey(config.geminiApiKey || '');
 
-      let catGastos = config.categoriasGastos || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
-      if (catGastos.length > 0 && typeof catGastos[0] === 'object') {
-        catGastos = catGastos.map(c => c.nome);
+      let catSaidas = config.categoriasSaidas || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
+      if (catSaidas.length > 0 && typeof catSaidas[0] === 'object') {
+        catSaidas = catSaidas.map(c => c.nome);
       }
-      setCategoriasGastos(catGastos);
-      setCategoriasRendas(config.categoriasRendas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
+      setCategoriasSaidas(catSaidas);
+      setCategoriasEntradas(config.categoriasEntradas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
 
       setGoogleDriveClientId(config.googleDriveClientId || '');
       setGoogleDriveApiKey(config.googleDriveApiKey || '');
@@ -73,8 +73,8 @@ export default function Configuracoes() {
   const handleSave = async () => {
     const config = {
       geminiApiKey,
-      categoriasGastos,
-      categoriasRendas,
+      categoriasSaidas,
+      categoriasEntradas,
       googleDriveClientId,
       googleDriveApiKey,
       googleDriveSyncEnabled,
@@ -109,7 +109,7 @@ export default function Configuracoes() {
   };
 
   const handleExport = () => {
-    const config = { geminiApiKey, categoriasGastos, categoriasRendas };
+    const config = { geminiApiKey, categoriasSaidas, categoriasEntradas };
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -129,14 +129,14 @@ export default function Configuracoes() {
       try {
         const config = JSON.parse(event.target.result);
         if (config.geminiApiKey !== undefined) setGeminiApiKey(config.geminiApiKey);
-        if (config.categoriasGastos) {
-          let importedCats = config.categoriasGastos;
+        if (config.categoriasSaidas) {
+          let importedCats = config.categoriasSaidas;
           if (importedCats.length > 0 && typeof importedCats[0] === 'object') {
             importedCats = importedCats.map(c => c.nome);
           }
-          setCategoriasGastos(importedCats);
+          setCategoriasSaidas(importedCats);
         }
-        if (config.categoriasRendas) setCategoriasRendas(config.categoriasRendas);
+        if (config.categoriasEntradas) setCategoriasEntradas(config.categoriasEntradas);
         alert('Configurações importadas com sucesso! Não se esqueça de salvá-las.');
       } catch (error) {
         console.error('[Configuracoes] Erro ao ler e fazer o parse do JSON importado:', error);
@@ -158,15 +158,15 @@ export default function Configuracoes() {
     setList(list.filter(i => i !== item));
   };
 
-  const addItemGasto = () => {
-    if (novoGasto && !categoriasGastos.includes(novoGasto)) {
-      setCategoriasGastos([...categoriasGastos, novoGasto]);
-      setNovoGasto('');
+  const addItemSaida = () => {
+    if (novoSaida && !categoriasSaidas.includes(novoSaida)) {
+      setCategoriasSaidas([...categoriasSaidas, novoSaida]);
+      setNovoSaida('');
     }
   };
 
-  const removeItemGasto = (itemNome) => {
-    setCategoriasGastos(categoriasGastos.filter(i => i !== itemNome));
+  const removeItemSaida = (itemNome) => {
+    setCategoriasSaidas(categoriasSaidas.filter(i => i !== itemNome));
   };
 
   return (
@@ -239,20 +239,20 @@ export default function Configuracoes() {
         <h2 className="text-xl font-semibold mb-4">13.3 Labels (avançado)</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Termo para Gasto</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Termo para Saida</label>
             <input
               type="text"
-              value={labels.gasto}
-              onChange={(e) => setLabels({ ...labels, gasto: e.target.value })}
+              value={labels.saida}
+              onChange={(e) => setLabels({ ...labels, saida: e.target.value })}
               className="w-full p-2 border border-gray-300 rounded focus:ring-orange-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Termo para Renda</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Termo para Entrada</label>
             <input
               type="text"
-              value={labels.renda}
-              onChange={(e) => setLabels({ ...labels, renda: e.target.value })}
+              value={labels.entrada}
+              onChange={(e) => setLabels({ ...labels, entrada: e.target.value })}
               className="w-full p-2 border border-gray-300 rounded focus:ring-orange-500"
             />
           </div>
@@ -283,7 +283,7 @@ export default function Configuracoes() {
       {/* Card: Categorias (Link) */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-indigo-600">
         <h2 className="text-xl font-semibold mb-2">Categorias</h2>
-        <p className="text-gray-600 mb-4 text-sm">Gerencie suas categorias de gastos e rendas para organizar melhor suas transações.</p>
+        <p className="text-gray-600 mb-4 text-sm">Gerencie suas categorias de saidas e entradas para organizar melhor suas transações.</p>
         <Link href="/categorias" className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg shadow-indigo-500/20">
           <span>🗂️</span> Gerenciar Categorias
         </Link>
@@ -292,16 +292,16 @@ export default function Configuracoes() {
       {/* 13.4 Integrações */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-green-600">
         <h2 className="text-xl font-semibold mb-4">13.4 Integrações</h2>
-        
+
         <div className="mb-6">
           <h3 className="font-medium text-green-700 mb-2 flex items-center gap-2">
             <span>☁️</span> Google Drive
           </h3>
           <div className="flex items-center gap-2 mb-4">
-            <input 
-              type="checkbox" 
-              id="syncEnabled" 
-              checked={googleDriveSyncEnabled} 
+            <input
+              type="checkbox"
+              id="syncEnabled"
+              checked={googleDriveSyncEnabled}
               onChange={(e) => setGoogleDriveSyncEnabled(e.target.checked)}
               className="w-4 h-4 text-green-600"
             />
@@ -353,7 +353,7 @@ export default function Configuracoes() {
       <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-yellow-500">
         <h2 className="text-xl font-semibold mb-4">13.5 Backup & Sync</h2>
         <div className="flex flex-col md:flex-row items-center gap-4">
-          <button 
+          <button
             onClick={handleManualSync}
             className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition font-bold shadow-md w-full md:w-auto"
           >

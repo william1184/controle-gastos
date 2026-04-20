@@ -10,16 +10,16 @@ export const orcamentoDb = {
 
     // Tentar buscar orçamento existente
     const res = db.exec("SELECT * FROM orcamento WHERE entidade_id = ? AND mes = ? AND ano = ?", [entidadeId, mes, ano]);
-    
+
     if (res.length > 0 && res[0].values.length > 0) {
       const orcamento = this._mapRowToOrcamento(res[0].columns, res[0].values[0]);
       return orcamento;
     }
 
     // Criar novo orçamento
-    db.run("INSERT INTO orcamento (entidade_id, mes, ano, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", 
+    db.run("INSERT INTO orcamento (entidade_id, mes, ano, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
       [entidadeId, mes, ano, now, now]);
-    
+
     const lastIdRes = db.exec("SELECT last_insert_rowid()");
     const newId = lastIdRes[0].values[0][0];
 
@@ -42,7 +42,7 @@ export const orcamentoDb = {
       WHERE c.tipo = 'saida' AND c.deleted_at IS NULL
       ORDER BY c.nome ASC
     `;
-    
+
     const res = db.exec(sql, [orcamentoId]);
     if (res.length === 0) return [];
 
@@ -63,7 +63,7 @@ export const orcamentoDb = {
     const res = db.exec("SELECT id FROM orcamento_categoria WHERE orcamento_id = ? AND categoria_id = ?", [orcamentoId, categoriaId]);
 
     if (res.length > 0 && res[0].values.length > 0) {
-      db.run("UPDATE orcamento_categoria SET valor_limite = ?, updated_at = ? WHERE id = ?", 
+      db.run("UPDATE orcamento_categoria SET valor_limite = ?, updated_at = ? WHERE id = ?",
         [valor, now, res[0].values[0][0]]);
     } else {
       db.run("INSERT INTO orcamento_categoria (orcamento_id, categoria_id, valor_limite, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
@@ -72,11 +72,11 @@ export const orcamentoDb = {
   },
 
   /**
-   * Calcula o valor realizado (gastos) por categoria para um determinado mês e ano.
+   * Calcula o valor realizado (saidas) por categoria para um determinado mês e ano.
    */
   async getRealizadoPorCategoria(entidadeId, mes, ano) {
     const db = getDb();
-    
+
     // Formata o período para busca (YYYY-MM)
     const periodo = `${ano}-${String(mes).padStart(2, '0')}%`;
 
@@ -104,9 +104,9 @@ export const orcamentoDb = {
   },
 
   /**
-   * Busca o histórico de gastos de uma categoria para sugerir limites.
+   * Busca o histórico de saidas de uma categoria para sugerir limites.
    */
-  async getHistoricoGastos(entidadeId, categoriaId, meses = 3) {
+  async getHistoricoSaidas(entidadeId, categoriaId, meses = 3) {
     const db = getDb();
     const sql = `
       SELECT 

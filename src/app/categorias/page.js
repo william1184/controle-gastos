@@ -1,5 +1,5 @@
 "use client";
-import { getCategorias, addCategoria, updateCategoria, deleteCategoria } from '@/lib/categoriaDb';
+import { addCategoria, deleteCategoria, getCategorias, updateCategoria } from '@/lib/categoriaDb';
 import { useEffect, useState } from 'react';
 
 export default function CategoriasPage() {
@@ -55,13 +55,13 @@ export default function CategoriasPage() {
           onClick={() => setActiveTab('saida')}
           className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'saida' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-gray-500 hover:bg-gray-50'}`}
         >
-          Saídas (Gastos)
+          Saídas (Saidas)
         </button>
         <button
           onClick={() => setActiveTab('entrada')}
           className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'entrada' ? 'bg-green-600 text-white shadow-lg shadow-green-500/30' : 'text-gray-500 hover:bg-gray-50'}`}
         >
-          Entradas (Rendas)
+          Entradas (Entradas)
         </button>
       </div>
 
@@ -73,7 +73,7 @@ export default function CategoriasPage() {
               value={novoNome}
               onChange={(e) => setNovoNome(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              placeholder={`Nova categoria de ${activeTab === 'saida' ? 'gasto' : 'renda'}...`}
+              placeholder={`Nova categoria de ${activeTab === 'saida' ? 'saida' : 'entrada'}...`}
               className="flex-grow p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             />
             <button

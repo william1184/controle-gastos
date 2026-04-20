@@ -8,7 +8,7 @@ export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [novoNome, setNovoNome] = useState('');
-  const [novaRenda, setNovaRenda] = useState('');
+  const [novaEntrada, setNovaEntrada] = useState('');
   const [novaDataNascimento, setNovaDataNascimento] = useState('');
   const [editingUsuario, setEditingUsuario] = useState(null);
 
@@ -31,14 +31,14 @@ export default function UsuariosPage() {
 
     await addUsuario({
       nome: novoNome,
-      renda: parseFloat(novaRenda) || 0,
+      entrada: parseFloat(novaEntrada) || 0,
       dataNascimento: novaDataNascimento || null,
       entidade_id: entidade.id
     });
     const data = await getUsuarios(entidade.id);
     setUsuarios(data);
     setNovoNome('');
-    setNovaRenda('');
+    setNovaEntrada('');
     setNovaDataNascimento('');
     window.dispatchEvent(new Event('app:usuarios-updated'));
   };
@@ -49,14 +49,14 @@ export default function UsuariosPage() {
 
     await updateUsuario(editingUsuario.id, {
       nome: novoNome,
-      renda: parseFloat(novaRenda) || 0,
+      entrada: parseFloat(novaEntrada) || 0,
       dataNascimento: novaDataNascimento || null
     });
     const data = await getUsuarios(entidade.id);
     setUsuarios(data);
     setEditingUsuario(null);
     setNovoNome('');
-    setNovaRenda('');
+    setNovaEntrada('');
     setNovaDataNascimento('');
     window.dispatchEvent(new Event('app:usuarios-updated'));
   };
@@ -77,7 +77,7 @@ export default function UsuariosPage() {
   const startEdit = (usuario) => {
     setEditingUsuario(usuario);
     setNovoNome(usuario.nome);
-    setNovaRenda(usuario.renda || '');
+    setNovaEntrada(usuario.entrada || '');
     setNovaDataNascimento(usuario.dataNascimento || '');
   };
 
@@ -114,12 +114,12 @@ export default function UsuariosPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Renda (R$)</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Entrada (R$)</label>
                 <input
                   type="number"
                   step="0.01"
-                  value={novaRenda}
-                  onChange={(e) => setNovaRenda(e.target.value)}
+                  value={novaEntrada}
+                  onChange={(e) => setNovaEntrada(e.target.value)}
                   placeholder="0.00"
                   className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                 />
@@ -138,7 +138,7 @@ export default function UsuariosPage() {
               {editingUsuario && (
                 <button
                   type="button"
-                  onClick={() => { setEditingUsuario(null); setNovoNome(''); setNovaRenda(''); setNovaDataNascimento(''); }}
+                  onClick={() => { setEditingUsuario(null); setNovoNome(''); setNovaEntrada(''); setNovaDataNascimento(''); }}
                   className="px-6 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
                 >
                   Cancelar
@@ -166,7 +166,7 @@ export default function UsuariosPage() {
                   <p className="font-bold text-gray-800">{user.nome}</p>
                   <div className="flex gap-3 text-[10px] text-gray-400 mt-0.5">
                     <span>ID: {user.id}</span>
-                    {user.renda > 0 && <span>• R$ {parseFloat(user.renda).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
+                    {user.entrada > 0 && <span>• R$ {parseFloat(user.entrada).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
                     {user.dataNascimento && <span>• {new Date(user.dataNascimento + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
                   </div>
                 </div>

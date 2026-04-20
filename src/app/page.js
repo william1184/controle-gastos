@@ -1,6 +1,6 @@
 "use client";
-import Link from 'next/link';
 import Image from 'next/image';
+import Link from 'next/link';
 
 export default function LandingPage() {
   return (
@@ -17,25 +17,25 @@ export default function LandingPage() {
             <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-ping"></span>
             <span className="text-blue-400 text-sm font-medium">Nova era na gestão financeira</span>
           </div>
-          
+
           <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-8 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">
             Assuma o controle total <br /> com <span className="text-blue-500">Inteligência Artificial</span>
           </h1>
-          
+
           <p className="max-w-2xl mx-auto text-xl text-gray-400 mb-12 leading-relaxed">
-            O Meu Orçamento AI transforma a maneira como você lida com dinheiro. 
+            O Meu Orçamento AI transforma a maneira como você lida com dinheiro.
             Gestão pessoal e empresarial em um só lugar, potencializada por insights inteligentes.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link 
-              href="/selecao-entidade" 
+            <Link
+              href="/selecao-entidade"
               className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg transition-all shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95"
             >
               Começar Agora — É Grátis
             </Link>
-            <a 
-              href="#features" 
+            <a
+              href="#features"
               className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-lg transition-all border border-white/10 hover:border-white/20"
             >
               Ver Funcionalidades
@@ -46,15 +46,15 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-blue-500/20 blur-[100px] -z-10"></div>
             <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-4 shadow-2xl">
               <div className="bg-gray-950 rounded-2xl aspect-[16/9] flex items-center justify-center overflow-hidden border border-white/5">
-                <Image 
-                   src="/logo_branco.png" 
-                   alt="Preview do Dashboard" 
-                   width={400} 
-                   height={400} 
-                   className="opacity-20 grayscale"
+                <Image
+                  src="/logo_branco.png"
+                  alt="Preview do Dashboard"
+                  width={400}
+                  height={400}
+                  className="opacity-20 grayscale"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
-                   <p className="text-2xl font-bold text-blue-500/50 uppercase tracking-[0.2em]">Dashboard Inteligente</p>
+                  <p className="text-2xl font-bold text-blue-500/50 uppercase tracking-[0.2em]">Dashboard Inteligente</p>
                 </div>
               </div>
             </div>
@@ -80,7 +80,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-xl font-bold mb-3">Insights de IA</h3>
               <p className="text-gray-400 leading-relaxed">
-                Análise automática dos seus gastos e rendas com sugestões personalizadas para economizar mais.
+                Análise automática dos seus saidas e entradas com sugestões personalizadas para economizar mais.
               </p>
             </div>
 
@@ -117,8 +117,8 @@ export default function LandingPage() {
       <section className="py-24 border-t border-white/5">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-8">Pronto para transformar sua realidade financeira?</h2>
-          <Link 
-            href="/selecao-entidade" 
+          <Link
+            href="/selecao-entidade"
             className="inline-block px-12 py-5 bg-white text-black hover:bg-gray-200 rounded-2xl font-black text-xl transition-all hover:scale-105 active:scale-95"
           >
             Começar Gratuitamente

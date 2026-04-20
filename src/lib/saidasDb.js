@@ -1,7 +1,7 @@
 import { getDb, initDb } from './db';
 import { getActiveEntidade } from './entidadeDb';
+import { addRecorrencia, deleteRecorrencia, updateRecorrencia } from './recorrenciaDb';
 import { getActiveUsuario } from './usuarioDb';
-import { addRecorrencia, deleteRecorrencia, getRecorrenciaById, updateRecorrencia } from './recorrenciaDb';
 
 // Helper to get category ID by name
 async function getCategoryIdByName(db, name, tipo = 'saida') {
@@ -10,13 +10,13 @@ async function getCategoryIdByName(db, name, tipo = 'saida') {
     return res[0].values[0][0];
   }
   // If not found, return 'Outros' (id 7 based on seeding)
-  return 7; 
+  return 7;
 }
 
-export async function getGastos(filters = {}) {
+export async function getSaidas(filters = {}) {
   await initDb();
   const db = getDb();
-  
+
   const activeEntidade = await getActiveEntidade();
   const entidadeId = activeEntidade?.id || 0;
 
@@ -28,24 +28,24 @@ export async function getGastos(filters = {}) {
     LEFT JOIN usuario u ON t.usuario_id = u.id
     WHERE t.tipo = 'saida' AND u.entidade_id = ?
   `;
-  
+
   const params = [entidadeId];
-  
+
   if (filters.categoria) {
     query += " AND c.nome = ?";
     params.push(filters.categoria);
   }
-  
+
   if (filters.accountId) {
     query += " AND t.conta_id = ?";
     params.push(filters.accountId);
   }
-  
+
   if (filters.startDate) {
     query += " AND t.data >= ?";
     params.push(filters.startDate);
   }
-  
+
   if (filters.endDate) {
     query += " AND t.data <= ?";
     params.push(filters.endDate);
@@ -55,12 +55,12 @@ export async function getGastos(filters = {}) {
     query += " AND t.tipo_custo = ?";
     params.push(filters.tipoCusto);
   }
-  
+
   query += " ORDER BY t.data DESC";
-  
+
   const res = db.exec(query, params);
-  
-  let loadedGastos = res[0] ? res[0].values.map(row => {
+
+  let loadedSaidas = res[0] ? res[0].values.map(row => {
     const obj = {};
     res[0].columns.forEach((col, i) => obj[col] = row[i]);
     return {
@@ -83,19 +83,19 @@ export async function getGastos(filters = {}) {
     prodRes[0].columns.forEach((col, i) => obj[col] = row[i]);
     return {
       ...obj,
-      gasto_id: obj.transacao_id,
+      saida_id: obj.transacao_id,
       preco_total: obj.total
     };
   }) : [];
 
-  loadedGastos = loadedGastos.map(g => ({
+  loadedSaidas = loadedSaidas.map(g => ({
     ...g,
-    produtos: todosProdutos.filter(p => p.gasto_id === g.id)
+    produtos: todosProdutos.filter(p => p.saida_id === g.id)
   }));
-  return loadedGastos;
+  return loadedSaidas;
 }
 
-export async function getGastoById(id) {
+export async function getSaidaById(id) {
   await initDb();
   const db = getDb();
   const res = db.exec(`
@@ -105,13 +105,13 @@ export async function getGastoById(id) {
     LEFT JOIN conta co ON t.conta_id = co.id
     WHERE t.id = ? AND t.tipo = 'saida'
   `, [id]);
-  
+
   if (!res[0]) return null;
   const row = res[0].values[0];
   const obj = {};
   res[0].columns.forEach((col, i) => obj[col] = row[i]);
 
-  const mappedGasto = {
+  const mappedSaida = {
     id: obj.id,
     data: obj.data,
     apelido: obj.descricao,
@@ -130,81 +130,81 @@ export async function getGastoById(id) {
     prodRes[0].columns.forEach((col, i) => pObj[col] = pRow[i]);
     return {
       ...pObj,
-      gasto_id: pObj.transacao_id,
+      saida_id: pObj.transacao_id,
       preco_total: pObj.total
     };
   }) : [];
-  mappedGasto.produtos = produtos;
-  return mappedGasto;
+  mappedSaida.produtos = produtos;
+  return mappedSaida;
 }
 
-export async function addGasto(gasto) {
+export async function addSaida(saida) {
   await initDb();
   const db = getDb();
-  
-  const categoriaId = await getCategoryIdByName(db, gasto.categoria, 'saida');
+
+  const categoriaId = await getCategoryIdByName(db, saida.categoria, 'saida');
   const now = new Date().toISOString();
 
   const activeEntidade = await getActiveEntidade();
   const entidadeId = activeEntidade?.id || 1;
-  
+
   const activeUser = await getActiveUsuario();
-  let usuarioId = gasto.usuarioId || activeUser?.id;
+  let usuarioId = saida.usuarioId || activeUser?.id;
 
   if (!usuarioId) {
     const userRes = db.exec("SELECT id FROM usuario WHERE entidade_id = ? LIMIT 1", [entidadeId]);
     usuarioId = userRes[0]?.values[0][0] || 1;
   }
 
-  if (!gasto.contaId) {
+  if (!saida.contaId) {
     const accountRes = db.exec("SELECT id FROM conta WHERE entidade_id = ? LIMIT 1", [entidadeId]);
-    gasto.contaId = accountRes[0]?.values[0][0] || 1;
+    saida.contaId = accountRes[0]?.values[0][0] || 1;
   }
 
   let recorrenciaId = null;
-  if (gasto.recorrencia) {
+  if (saida.recorrencia) {
     recorrenciaId = await addRecorrencia({
-      descricao: gasto.apelido || 'Recorrência de Gasto',
-      frequencia: gasto.recorrencia.frequencia,
-      proxima_execucao: calculateNextExecution(gasto.data, gasto.recorrencia.frequencia)
+      descricao: saida.apelido || 'Recorrência de Saida',
+      frequencia: saida.recorrencia.frequencia,
+      proxima_execucao: calculateNextExecution(saida.data, saida.recorrencia.frequencia)
     });
   }
 
   db.run(`
     INSERT INTO transacao (data, descricao, valor, tipo, categoria_id, conta_id, usuario_id, recorrencia_id, tipo_custo, created_at)
     VALUES (?, ?, ?, 'saida', ?, ?, ?, ?, ?, ?)
-  `, [gasto.data, gasto.apelido, gasto.total, categoriaId, gasto.contaId, usuarioId, recorrenciaId, gasto.tipoCusto || 'Variável', now]);
-  
+  `, [saida.data, saida.apelido, saida.total, categoriaId, saida.contaId, usuarioId, recorrenciaId, saida.tipoCusto || 'Variável', now]);
+
   const res = db.exec("SELECT last_insert_rowid()");
   const transacaoId = res[0].values[0][0];
 
   // Default description if empty
-  if (!gasto.apelido) {
+  if (!saida.apelido) {
     const defaultDesc = `Transação saída ${transacaoId}`;
     db.run("UPDATE transacao SET descricao = ? WHERE id = ?", [defaultDesc, transacaoId]);
   }
 
   // Tags
-  if (gasto.tagIds && gasto.tagIds.length > 0) {
+  if (saida.tagIds && saida.tagIds.length > 0) {
     const { linkTagsToTransacao } = await import('./tagDb');
-    await linkTagsToTransacao(transacaoId, gasto.tagIds);
+    await linkTagsToTransacao(transacaoId, saida.tagIds);
   }
 
-  const productsToInsert = (gasto.produtos && gasto.produtos.length > 0) 
-    ? gasto.produtos 
-    : [{ nome: gasto.apelido || '', quantidade: 1, unidade: 'un', preco_unitario: gasto.total, preco_total: gasto.total }];
+  const productsToInsert = (saida.produtos && saida.produtos.length > 0)
+    ? saida.produtos
+    : [{ nome: saida.apelido || '', quantidade: 1, unidade: 'un', preco_unitario: saida.total, preco_total: saida.total }];
 
   productsToInsert.forEach(p => {
     db.run(`
       INSERT INTO itens_transacao (transacao_id, nome, quantidade, unidade, preco_unitario, total, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [transacaoId, p.nome, p.quantidade, p.unidade, p.preco_unitario, p.preco_total, now]);
-    
+
     // Default description for item if empty
     if (!p.nome) {
       const itemRes = db.exec("SELECT last_insert_rowid()");
       const itemId = itemRes[0].values[0][0];
-      const defaultItemDesc = `Item ${gasto.categoria || 'Outros'} ${itemId}`;
+      const defaultItemDesc = `Item ${saida.categoria || 'Outros'} ${itemId}`;
       db.run("UPDATE itens_transacao SET nome = ? WHERE id = ?", [defaultItemDesc, itemId]);
     }
   });
@@ -212,28 +212,28 @@ export async function addGasto(gasto) {
   return transacaoId;
 }
 
-export async function updateGasto(id, gasto) {
+export async function updateSaida(id, saida) {
   await initDb();
   const db = getDb();
-  
-  const categoriaId = await getCategoryIdByName(db, gasto.categoria, 'saida');
+
+  const categoriaId = await getCategoryIdByName(db, saida.categoria, 'saida');
   const now = new Date().toISOString();
 
-  const existing = await getGastoById(id);
+  const existing = await getSaidaById(id);
   let recorrenciaId = existing.recorrenciaId;
 
-  if (gasto.recorrencia) {
+  if (saida.recorrencia) {
     if (recorrenciaId) {
       await updateRecorrencia(recorrenciaId, {
-        descricao: gasto.apelido || 'Recorrência de Gasto',
-        frequencia: gasto.recorrencia.frequencia,
-        proxima_execucao: calculateNextExecution(gasto.data, gasto.recorrencia.frequencia)
+        descricao: saida.apelido || 'Recorrência de Saida',
+        frequencia: saida.recorrencia.frequencia,
+        proxima_execucao: calculateNextExecution(saida.data, saida.recorrencia.frequencia)
       });
     } else {
       recorrenciaId = await addRecorrencia({
-        descricao: gasto.apelido || 'Recorrência de Gasto',
-        frequencia: gasto.recorrencia.frequencia,
-        proxima_execucao: calculateNextExecution(gasto.data, gasto.recorrencia.frequencia)
+        descricao: saida.apelido || 'Recorrência de Saida',
+        frequencia: saida.recorrencia.frequencia,
+        proxima_execucao: calculateNextExecution(saida.data, saida.recorrencia.frequencia)
       });
     }
   } else if (recorrenciaId) {
@@ -245,13 +245,13 @@ export async function updateGasto(id, gasto) {
     UPDATE transacao 
     SET data = ?, descricao = ?, valor = ?, categoria_id = ?, conta_id = ?, usuario_id = ?, recorrencia_id = ?, tipo_custo = ?, updated_at = ?
     WHERE id = ? AND tipo = 'saida'
-  `, [gasto.data, gasto.apelido, gasto.total, categoriaId, gasto.contaId, gasto.usuarioId || existing.usuarioId, recorrenciaId, gasto.tipoCusto || 'Variável', now, id]);
-  
+  `, [saida.data, saida.apelido, saida.total, categoriaId, saida.contaId, saida.usuarioId || existing.usuarioId, recorrenciaId, saida.tipoCusto || 'Variável', now, id]);
+
   db.run("DELETE FROM itens_transacao WHERE transacao_id = ?", [id]);
-  
-  const productsToInsert = (gasto.produtos && gasto.produtos.length > 0) 
-    ? gasto.produtos 
-    : [{ nome: gasto.apelido || 'Gasto sem itens', quantidade: 1, unidade: 'un', preco_unitario: gasto.total, preco_total: gasto.total }];
+
+  const productsToInsert = (saida.produtos && saida.produtos.length > 0)
+    ? saida.produtos
+    : [{ nome: saida.apelido || 'Saida sem itens', quantidade: 1, unidade: 'un', preco_unitario: saida.total, preco_total: saida.total }];
 
   productsToInsert.forEach(p => {
     db.run(`
@@ -261,13 +261,13 @@ export async function updateGasto(id, gasto) {
   });
 }
 
-export async function updateGastoCategoryAndType(id, categoryName, tipoCusto) {
+export async function updateSaidaCategoryAndType(id, categoryName, tipoCusto) {
   await initDb();
   const db = getDb();
-  
+
   const categoriaId = await getCategoryIdByName(db, categoryName, 'saida');
   const now = new Date().toISOString();
-  
+
   db.run(`
     UPDATE transacao 
     SET categoria_id = ?, tipo_custo = ?, updated_at = ?
@@ -275,20 +275,20 @@ export async function updateGastoCategoryAndType(id, categoryName, tipoCusto) {
   `, [categoriaId, tipoCusto, now, id]);
 }
 
-export async function deleteGasto(id) {
+export async function deleteSaida(id) {
   await initDb();
   const db = getDb();
-  
-  const gasto = await getGastoById(id);
-  if (gasto && gasto.recorrenciaId) {
-    await deleteRecorrencia(gasto.recorrenciaId);
+
+  const saida = await getSaidaById(id);
+  if (saida && saida.recorrenciaId) {
+    await deleteRecorrencia(saida.recorrenciaId);
   }
 
   db.run("DELETE FROM itens_transacao WHERE transacao_id = ?", [id]);
   db.run("DELETE FROM transacao WHERE id = ? AND tipo = 'saida'", [id]);
 }
 
-export async function clearGastos() {
+export async function clearSaidas() {
   await initDb();
   const db = getDb();
   db.run("DELETE FROM itens_transacao WHERE transacao_id IN (SELECT id FROM transacao WHERE tipo = 'saida')");

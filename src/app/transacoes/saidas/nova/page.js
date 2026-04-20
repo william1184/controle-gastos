@@ -2,13 +2,13 @@
 import { getCategorias } from '@/lib/categoriaDb';
 import { getContas } from '@/lib/contaDb';
 import { getActiveEntidade } from '@/lib/entidadeDb';
-import { addGasto } from '@/lib/gastosDb';
+import { addSaida } from '@/lib/saidasDb';
 import { getTags } from '@/lib/tagDb';
 import { getUsuarios } from '@/lib/usuarioDb';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function NovaGasto() {
+export default function NovaSaida() {
   const [mode, setMode] = useState('quick'); // 'quick' or 'full'
   const [produtos, setProdutos] = useState([]);
   const [data, setData] = useState('');
@@ -85,7 +85,7 @@ export default function NovaGasto() {
       return;
     }
 
-    await addGasto({
+    await addSaida({
       data,
       apelido,
       categoria,
@@ -115,7 +115,7 @@ export default function NovaGasto() {
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Novo Gasto</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Novo Saida</h1>
           <div className="flex bg-white rounded-xl p-1 shadow-sm border border-gray-200">
             <button
               onClick={() => setMode('quick')}
@@ -208,8 +208,8 @@ export default function NovaGasto() {
                       }
                     }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${selectedTagIds.includes(tag.id)
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
-                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
+                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                       }`}
                   >
                     {tag.nome}
@@ -247,7 +247,7 @@ export default function NovaGasto() {
 
             {isRecorrente && (
               <div className="mt-4 animate-fadeIn">
-                <label className="block text-xs font-black text-gray-400 uppercase mb-2">Frequência do Gasto</label>
+                <label className="block text-xs font-black text-gray-400 uppercase mb-2">Frequência do Saida</label>
                 <select
                   value={frequencia}
                   onChange={(e) => setFrequencia(e.target.value)}
@@ -349,7 +349,7 @@ export default function NovaGasto() {
             onClick={handleSave}
             className="flex-1 bg-blue-600 text-white px-8 py-4 rounded-2xl hover:bg-blue-700 transition shadow-lg shadow-blue-200 font-black text-lg"
           >
-            Salvar Gasto
+            Salvar Saida
           </button>
           <button
             onClick={handleBack}

@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { addGasto, getGastos } from '@/lib/gastosDb';
-import { addRenda, getRendas } from '@/lib/rendasDb';
-import { getActiveUsuario } from '@/lib/usuarioDb';
+import { getCategorias } from '@/lib/categoriaDb';
 import { getContas } from '@/lib/contaDb';
 import { getActiveEntidade } from '@/lib/entidadeDb';
-import { getCategorias } from '@/lib/categoriaDb';
+import { addEntrada } from '@/lib/entradasDb';
+import { addSaida } from '@/lib/saidasDb';
+import { getActiveUsuario } from '@/lib/usuarioDb';
+import { useEffect, useState } from 'react';
 
 export default function ImportadorCSV({ onImportComplete }) {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
@@ -15,8 +15,8 @@ export default function ImportadorCSV({ onImportComplete }) {
   const [activeUsuario, setActiveUsuario] = useState(null);
   const [contas, setContas] = useState([]);
   const [selectedContaId, setSelectedContaId] = useState('');
-  const [categoriasGastos, setCategoriasGastos] = useState([]);
-  const [categoriasRendas, setCategoriasRendas] = useState([]);
+  const [categoriasSaidas, setCategoriasSaidas] = useState([]);
+  const [categoriasEntradas, setCategoriasEntradas] = useState([]);
 
   useEffect(() => {
     async function loadData() {
@@ -24,8 +24,8 @@ export default function ImportadorCSV({ onImportComplete }) {
         getCategorias('saida'),
         getCategorias('entrada')
       ]);
-      setCategoriasGastos(catG.map(c => c.nome));
-      setCategoriasRendas(catR.map(c => c.nome));
+      setCategoriasSaidas(catG.map(c => c.nome));
+      setCategoriasEntradas(catR.map(c => c.nome));
 
       const activeUser = await getActiveUsuario();
       setActiveUsuario(activeUser);
@@ -141,8 +141,8 @@ export default function ImportadorCSV({ onImportComplete }) {
     const descIdx = csvHeaders.indexOf(csvMapping.descricao);
     const usuarioId = activeUsuario?.id || 0;
 
-    let novosGastos = [];
-    let novasRendas = [];
+    let novosSaidas = [];
+    let novasEntradas = [];
 
     const parseDate = (str) => {
       const s = str.trim();
@@ -187,10 +187,10 @@ export default function ImportadorCSV({ onImportComplete }) {
         else if (isDebito === false) valorFinal = Math.abs(valorParsed);
 
         if (valorFinal < 0) {
-          novosGastos.push({
+          novosSaidas.push({
             data,
-            apelido: descricao || 'Gasto do Extrato',
-            categoria: categoriasGastos.length > 0 ? categoriasGastos[0] : 'Outros',
+            apelido: descricao || 'Saida do Extrato',
+            categoria: categoriasSaidas.length > 0 ? categoriasSaidas[0] : 'Outros',
             tipoCusto: 'Variável',
             total: Math.abs(valorFinal),
             usuarioId: usuarioId,
@@ -198,10 +198,10 @@ export default function ImportadorCSV({ onImportComplete }) {
             produtos: []
           });
         } else {
-          novasRendas.push({
+          novasEntradas.push({
             data,
-            descricao: descricao || 'Renda do Extrato',
-            categoria: categoriasRendas.length > 0 ? categoriasRendas[0] : 'Outros',
+            descricao: descricao || 'Entrada do Extrato',
+            categoria: categoriasEntradas.length > 0 ? categoriasEntradas[0] : 'Outros',
             valor: valorFinal,
             usuarioId: usuarioId,
             contaId: selectedContaId ? parseInt(selectedContaId) : undefined
@@ -210,10 +210,10 @@ export default function ImportadorCSV({ onImportComplete }) {
       }
     }
 
-    if (novosGastos.length > 0 || novasRendas.length > 0) {
-      for (const g of novosGastos) await addGasto(g);
-      for (const r of novasRendas) await addRenda(r);
-      alert(`Importado com sucesso!\n${novosGastos.length} gastos, ${novasRendas.length} rendas.`);
+    if (novosSaidas.length > 0 || novasEntradas.length > 0) {
+      for (const g of novosSaidas) await addSaida(g);
+      for (const r of novasEntradas) await addEntrada(r);
+      alert(`Importado com sucesso!\n${novosSaidas.length} saidas, ${novasEntradas.length} entradas.`);
       if (onImportComplete) onImportComplete();
     } else {
       alert('Nenhum registro válido encontrado.');
@@ -234,7 +234,7 @@ export default function ImportadorCSV({ onImportComplete }) {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Importar Extrato Bancário</h2>
         <p className="text-gray-500 mb-8">Arraste seu arquivo CSV ou TXT para categorizar suas transações automaticamente.</p>
-        
+
         <label className="block w-full border-2 border-dashed border-gray-200 rounded-3xl p-12 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer group">
           <span className="text-gray-400 group-hover:text-blue-600 font-bold">Clique para selecionar arquivo</span>
           <input type="file" accept=".csv,.txt" onChange={handleImportExtratoCSV} className="hidden" />
@@ -274,9 +274,9 @@ export default function ImportadorCSV({ onImportComplete }) {
 
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Conta de Destino *</label>
-                <select 
-                  value={selectedContaId} 
-                  onChange={e => setSelectedContaId(e.target.value)} 
+                <select
+                  value={selectedContaId}
+                  onChange={e => setSelectedContaId(e.target.value)}
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   required
                 >

@@ -92,7 +92,7 @@ async function createTables(database) {
     CREATE TABLE IF NOT EXISTS usuario (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT,
-      renda REAL DEFAULT 0,
+      entrada REAL DEFAULT 0,
       data_nascimento TEXT,
       entidade_id INTEGER,
       created_at TEXT,
@@ -224,7 +224,7 @@ async function createTables(database) {
     // Erro ignorável
   }
   try {
-    await database.exec("ALTER TABLE usuario ADD COLUMN renda REAL DEFAULT 0");
+    await database.exec("ALTER TABLE usuario ADD COLUMN entrada REAL DEFAULT 0");
   } catch (e) {
     // Erro ignorável
   }
@@ -243,7 +243,7 @@ async function seedDefaultData(database) {
   const now = new Date().toISOString();
 
   database.run("INSERT INTO entidade (id, nome, is_contexto_pessoal, created_at) VALUES (1, 'Família Padrão', 1, ?)", [now]);
-  database.run("INSERT INTO usuario (id, nome, renda, data_nascimento, entidade_id, created_at) VALUES (1, 'Usuário Padrão', 0, '1990-01-01', 1, ?)", [now]);
+  database.run("INSERT INTO usuario (id, nome, entrada, data_nascimento, entidade_id, created_at) VALUES (1, 'Usuário Padrão', 0, '1990-01-01', 1, ?)", [now]);
   database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (1, 'Itaú', 'banco', 0, 1, ?)", [now]);
   database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (2, 'Nubank', 'banco', 0, 1, ?)", [now]);
   database.run("INSERT INTO conta (id, nome, tipo, saldo_inicial, entidade_id, created_at) VALUES (3, 'Mercado Pago', 'banco', 0, 1, ?)", [now]);

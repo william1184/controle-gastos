@@ -36,10 +36,10 @@ describe('GenerativeLanguageApi', () => {
     });
     api.genAI = mockGenAI;
 
-    const gastos = [{ apelido: 'Supermercado', categoria: 'Outros', total: 100, tipoCusto: 'Variável' }];
+    const saidas = [{ apelido: 'Supermercado', categoria: 'Outros', total: 100, tipoCusto: 'Variável' }];
     const categorias = ['Alimentação', 'Lazer'];
 
-    const result = await api.suggestCategories(gastos, categorias);
+    const result = await api.suggestCategories(saidas, categorias);
 
     expect(mockGenerateContent).toHaveBeenCalled();
     const prompt = mockGenerateContent.mock.calls[0][0];
@@ -50,7 +50,7 @@ describe('GenerativeLanguageApi', () => {
     expect(result[0].tipo_custo_sugerido).toBe('Variável');
   });
 
-  test('suggestCategoriesRendas should format prompt correctly', async () => {
+  test('suggestCategoriesEntradas should format prompt correctly', async () => {
     const mockGenerateContent = jest.fn().mockResolvedValue({
       response: {
         text: () => JSON.stringify([
@@ -65,10 +65,10 @@ describe('GenerativeLanguageApi', () => {
     });
     api.genAI = mockGenAI;
 
-    const rendas = [{ descricao: 'Pagamento Empresa', categoria: 'Outros', valor: 5000 }];
+    const entradas = [{ descricao: 'Pagamento Empresa', categoria: 'Outros', valor: 5000 }];
     const categorias = ['Salário', 'Freelance'];
 
-    const result = await api.suggestCategoriesRendas(rendas, categorias);
+    const result = await api.suggestCategoriesEntradas(entradas, categorias);
 
     expect(mockGenerateContent).toHaveBeenCalled();
     expect(result).toHaveLength(1);
