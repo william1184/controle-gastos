@@ -9,6 +9,7 @@ import Image from 'next/image';
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { APP_VERSION } from "@/lib/constants";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -102,6 +103,8 @@ function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuO
   );
 }
 
+import { NotificationProvider } from "@/lib/NotificationContext";
+
 export default function RootLayout({ children }) {
   const [activeEntidade, setActiveEntidadeState] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
@@ -111,6 +114,18 @@ export default function RootLayout({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Check version for bundle refresh
+    if (typeof window !== 'undefined') {
+      const lastVersion = localStorage.getItem('appVersion');
+      if (lastVersion && lastVersion !== APP_VERSION) {
+        localStorage.setItem('appVersion', APP_VERSION);
+        window.location.reload();
+        return;
+      } else if (!lastVersion) {
+        localStorage.setItem('appVersion', APP_VERSION);
+      }
+    }
+
     async function load() {
       const ent = await getActiveEntidade();
       if (ent) {
@@ -165,27 +180,29 @@ export default function RootLayout({ children }) {
         <title>Meu Orçamento AI</title>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900 min-h-screen flex`}>
-        <BackgroundTaskProvider>
-          {showSidebar && (
-            <Sidebar activeEntidade={activeEntidade} handleSwitchEntidade={handleSwitchEntidade} />
-          )}
-          
-          <div className="flex-grow flex flex-col min-w-0">
-            {!isPublicPage && (
-              <HeaderContent 
-                activeUsuario={activeUsuario}
-                usuarios={usuarios}
-                isUserMenuOpen={isUserMenuOpen}
-                setIsUserMenuOpen={setIsUserMenuOpen}
-                handleSwitchUser={handleSwitchUser}
-              />
+        <NotificationProvider>
+          <BackgroundTaskProvider>
+            {showSidebar && (
+              <Sidebar activeEntidade={activeEntidade} handleSwitchEntidade={handleSwitchEntidade} />
             )}
             
-            <main className={`${isPublicPage ? '' : 'p-8'} flex-grow overflow-auto`}>
-              {children}
-            </main>
-          </div>
-        </BackgroundTaskProvider>
+            <div className="flex-grow flex flex-col min-w-0">
+              {!isPublicPage && (
+                <HeaderContent 
+                  activeUsuario={activeUsuario}
+                  usuarios={usuarios}
+                  isUserMenuOpen={isUserMenuOpen}
+                  setIsUserMenuOpen={setIsUserMenuOpen}
+                  handleSwitchUser={handleSwitchUser}
+                />
+              )}
+              
+              <main className={`${isPublicPage ? '' : 'p-8'} flex-grow overflow-auto`}>
+                {children}
+              </main>
+            </div>
+          </BackgroundTaskProvider>
+        </NotificationProvider>
       </body>
     </html>
   );

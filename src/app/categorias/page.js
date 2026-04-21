@@ -109,7 +109,7 @@ export default function CategoriasPage() {
                   <>
                     <div className="flex items-center gap-3">
                       <div className={`w-2 h-2 rounded-full ${activeTab === 'saida' ? 'bg-blue-400' : 'bg-green-400'}`}></div>
-                      <span className="text-gray-900 font-medium">{cat.nome}</span>
+                      <span className="text-gray-900 font-medium truncate max-w-[250px]" title={cat.nome}>{cat.nome}</span>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button

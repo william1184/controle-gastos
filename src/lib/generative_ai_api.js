@@ -18,73 +18,56 @@ class GenerativeLanguageApi {
     this.genAI = new GoogleGenerativeAI(this.apiKey);
   }
 
-  async uploadImageGenerateContent(imageBase64, mimeType, categoriasSaidas = []) {
-    const filePart1 = fileToGenerativePart(imageBase64, mimeType);
-
-    const imageParts = [filePart1];
-
+  async processDocument(base64Data, mimeType, categoriasSaidas = []) {
+    const filePart = fileToGenerativePart(base64Data, mimeType);
     const model = this.genAI.getGenerativeModel({
       model: "gemini-flash-latest",
     });
     const hoje = new Date().toISOString().split("T")[0];
-
     const categoriasText = categoriasSaidas.length > 0 ? categoriasSaidas.join(", ") : "Alimentação, Transporte, Saúde, Educação, Lazer, Outros";
 
     const prompt = `
-    Você é uma IA especializada em leitura e extração de informações de cupons fiscais. Sua tarefa é analisar o texto de um cupom fiscal e retornar as informações no formato JSON especificado abaixo. Caso alguma informação não seja encontrada no cupom, insira o valor 'Nao encontrado'. Certifique-se de seguir o formato JSON fornecido:
+    Você é uma IA especializada em leitura e extração de informações de documentos financeiros (Cupons Fiscais, Notas Fiscais e Faturas de Cartão). 
+    Sua tarefa é analisar o documento fornecido e retornar as informações no formato JSON especificado abaixo.
+    
+    INSTRUÇÕES ESPECÍFICAS:
+    1. Se for um Cupom/Nota Fiscal: Extraia a data, o apelido (nome do estabelecimento), a categoria sugerida, o valor total e a lista de produtos.
+    2. Se for uma Fatura de Cartão: Extraia o resumo da fatura (Data de fechamento ou vencimento como 'data', 'Fatura de Cartão' como apelido, e o valor total). Em 'produtos', liste os principais lançamentos encontrados na fatura.
+    3. Categorias Sugeridas: Escolha preferencialmente uma desta lista: ${categoriasText}.
+    4. Formato de Data: Sempre use YYYY-MM-DD.
 
-    produtos: Uma lista de objetos contendo:
-
-    nome: Nome do produto.
-    codigo: Código do produto.
-    quantidade: Quantidade adquirida.
-    unidade: Unidade de medida (ex.: 'un', 'kg').
-    preco_unitario: Preço unitário do produto.
-    preco_total: Preço total do produto.
-    data: Data da compra no formato YYYY-MM-DD.
-
-    apelido: Um apelido ou descrição para a compra. Caso não enconttrado, "CUPOM + campo data"
-    categoria: A categoria da compra que melhor se encaixa neste cupom. Dê preferência por escolher uma desta lista: ${categoriasText}.
-
-    total: O valor total da compra.
-
-    Se alguma informação não for encontrada, preencha com 'Nao encontrado' em campos string, 0 em campos inteiro e ${hoje} em campos data .
-
-    Exemplo de JSON esperado:
+    FORMATO JSON ESPERADO:
     {
       "produtos": [
         {
-          "nome": "Produto A",
-          "codigo": "12345",
-          "quantidade": 2,
-          "unidade": "un",
-          "preco_unitario": 50.0,
-          "preco_total": 100.0
-        },
-        {
-          "nome": "Produto B",
-          "codigo": "67890",
+          "nome": "Descrição do item ou lançamento",
           "quantidade": 1,
-          "unidade": "un",
-          "preco_unitario": 150.0,
-          "preco_total": 150.0
+          "preco_unitario": 0.0,
+          "preco_total": 0.0
         }
       ],
-      "data": "2023-10-01",
-      "apelido": "Compra de Outubro",
-      "categoria": "Alimentação",
-      "total": 250.0
+      "data": "YYYY-MM-DD",
+      "apelido": "Nome do Local ou Fatura",
+      "categoria": "Nome da Categoria",
+      "total": 0.0
     }
-    Agora, analise o seguinte texto de um cupom fiscal e retorne o JSON correspondente. Sem formatação`;
 
-    const result = await model.generateContent([prompt, ...imageParts]);
+    Caso não encontre uma informação, use valores padrão: "" para strings, 0 para números e "${hoje}" para data.
+    Retorne APENAS o JSON, sem blocos de código markdown.`;
 
-    // Processar o resultado e armazenar no cache
-    const parsedResult = JSON.parse(
-      result.response.text().replace("```json", "").replace("```", "")
-    );
+    const result = await model.generateContent([prompt, filePart]);
+    const text = result.response.text().replace(/```json/gi, "").replace(/```/g, "").trim();
+    
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Erro ao parsear JSON da IA:", text);
+      throw new Error("Falha ao processar documento. A IA retornou um formato inválido.");
+    }
+  }
 
-    return parsedResult;
+  async uploadImageGenerateContent(imageBase64, mimeType, categoriasSaidas = []) {
+    return this.processDocument(imageBase64, mimeType, categoriasSaidas);
   }
 
   async suggestCategories(saidas, categoriasSaidas = []) {

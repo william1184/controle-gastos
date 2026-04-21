@@ -183,6 +183,17 @@ async function createTables(database) {
       FOREIGN KEY (transacao_id) REFERENCES transacao(id),
       FOREIGN KEY (tag_id) REFERENCES tag(id)
     );
+    -- Tabela de configuração estruturada
+    CREATE TABLE IF NOT EXISTS configuracao (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      usuario_id INTEGER, -- NULL para geral
+      chave TEXT NOT NULL,
+      valor TEXT,
+      created_at TEXT,
+      updated_at TEXT,
+      FOREIGN KEY (usuario_id) REFERENCES usuario(id)
+    );
+
     -- Tabela de configuração/store legada
     CREATE TABLE IF NOT EXISTS store (
       key TEXT PRIMARY KEY,

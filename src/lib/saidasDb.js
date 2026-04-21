@@ -20,8 +20,7 @@ export async function getSaidas(filters = {}) {
   const activeEntidade = await getActiveEntidade();
   const entidadeId = activeEntidade?.id || 0;
 
-  let query = `
-    SELECT t.*, c.nome as categoria_nome, co.nome as conta_nome 
+  let queryBase = `
     FROM transacao t
     LEFT JOIN categoria c ON t.categoria_id = c.id
     LEFT JOIN conta co ON t.conta_id = co.id
@@ -32,31 +31,45 @@ export async function getSaidas(filters = {}) {
   const params = [entidadeId];
 
   if (filters.categoria) {
-    query += " AND c.nome = ?";
+    queryBase += " AND c.nome = ?";
     params.push(filters.categoria);
   }
 
   if (filters.accountId) {
-    query += " AND t.conta_id = ?";
+    queryBase += " AND t.conta_id = ?";
     params.push(filters.accountId);
   }
 
   if (filters.startDate) {
-    query += " AND t.data >= ?";
+    queryBase += " AND t.data >= ?";
     params.push(filters.startDate);
   }
 
   if (filters.endDate) {
-    query += " AND t.data <= ?";
+    queryBase += " AND t.data <= ?";
     params.push(filters.endDate);
   }
 
   if (filters.tipoCusto) {
-    query += " AND t.tipo_custo = ?";
+    queryBase += " AND t.tipo_custo = ?";
     params.push(filters.tipoCusto);
   }
 
+  // Get total count
+  const countRes = db.exec(`SELECT COUNT(*) as total ${queryBase}`, params);
+  const total = countRes[0]?.values[0][0] || 0;
+
+  let query = `SELECT t.*, c.nome as categoria_nome, co.nome as conta_nome ${queryBase}`;
   query += " ORDER BY t.data DESC";
+
+  const page = filters.page || 1;
+  const pageSize = filters.pageSize || 1000; // Default large if not specified
+  
+  if (filters.page) {
+    query += " LIMIT ? OFFSET ?";
+    params.push(pageSize);
+    params.push((page - 1) * pageSize);
+  }
 
   const res = db.exec(query, params);
 
@@ -92,6 +105,16 @@ export async function getSaidas(filters = {}) {
     ...g,
     produtos: todosProdutos.filter(p => p.saida_id === g.id)
   }));
+
+  if (filters.page) {
+    return {
+      data: loadedSaidas,
+      total,
+      page,
+      pageSize
+    };
+  }
+
   return loadedSaidas;
 }
 
@@ -198,7 +221,7 @@ export async function addSaida(saida) {
     db.run(`
       INSERT INTO itens_transacao (transacao_id, nome, quantidade, unidade, preco_unitario, total, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [transacaoId, p.nome, p.quantidade, p.unidade, p.preco_unitario, p.preco_total, now]);
+    `, [transacaoId, p.nome || '', p.quantidade || 1, p.unidade || 'un', p.preco_unitario || 0, p.preco_total || 0, now]);
 
     // Default description for item if empty
     if (!p.nome) {
@@ -257,7 +280,7 @@ export async function updateSaida(id, saida) {
     db.run(`
       INSERT INTO itens_transacao (transacao_id, nome, quantidade, unidade, preco_unitario, total, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [id, p.nome, p.quantidade, p.unidade, p.preco_unitario, p.preco_total, now]);
+    `, [id, p.nome || '', p.quantidade || 1, p.unidade || 'un', p.preco_unitario || 0, p.preco_total || 0, now]);
   });
 }
 

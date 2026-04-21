@@ -35,11 +35,12 @@ export const orcamentoDb = {
       SELECT 
         c.id as categoria_id,
         c.nome as categoria_nome,
+        c.tipo as categoria_tipo,
         oc.id as orcamento_categoria_id,
         COALESCE(oc.valor_limite, 0) as valor_limite
       FROM categoria c
       LEFT JOIN orcamento_categoria oc ON c.id = oc.categoria_id AND oc.orcamento_id = ?
-      WHERE c.tipo = 'saida' AND c.deleted_at IS NULL
+      WHERE c.deleted_at IS NULL
       ORDER BY c.nome ASC
     `;
 
@@ -83,13 +84,13 @@ export const orcamentoDb = {
     const sql = `
       SELECT 
         categoria_id,
+        tipo,
         SUM(valor) as total_realizado
       FROM transacao
-      WHERE tipo = 'saida' 
-        AND data LIKE ? 
+      WHERE data LIKE ? 
         AND usuario_id IN (SELECT id FROM usuario WHERE entidade_id = ?)
         AND deleted_at IS NULL
-      GROUP BY categoria_id
+      GROUP BY categoria_id, tipo
     `;
 
     const res = db.exec(sql, [periodo, entidadeId]);
@@ -141,7 +142,7 @@ export const orcamentoDb = {
     const categoriasCompletas = limites.map(cat => {
       const valorRealizado = realizado[cat.categoria_id] || 0;
       const valorLimite = cat.valor_limite || 0;
-      const saldo = valorLimite - valorRealizado;
+      const saldo = cat.categoria_tipo === 'saida' ? (valorLimite - valorRealizado) : (valorRealizado - valorLimite);
       const percentual = valorLimite > 0 ? (valorRealizado / valorLimite) * 100 : 0;
 
       return {
@@ -153,15 +154,25 @@ export const orcamentoDb = {
       };
     });
 
-    const totalPlanejado = categoriasCompletas.reduce((acc, cat) => acc + cat.valor_limite, 0);
-    const totalRealizado = categoriasCompletas.reduce((acc, cat) => acc + cat.valor_realizado, 0);
+    const categoriasSaida = categoriasCompletas.filter(c => c.categoria_tipo === 'saida');
+    const categoriasEntrada = categoriasCompletas.filter(c => c.categoria_tipo === 'entrada');
+
+    const totalPlanejadoSaida = categoriasSaida.reduce((acc, cat) => acc + cat.valor_limite, 0);
+    const totalRealizadoSaida = categoriasSaida.reduce((acc, cat) => acc + cat.valor_realizado, 0);
+
+    const totalPlanejadoEntrada = categoriasEntrada.reduce((acc, cat) => acc + cat.valor_limite, 0);
+    const totalRealizadoEntrada = categoriasEntrada.reduce((acc, cat) => acc + cat.valor_realizado, 0);
 
     return {
       orcamentoId: orcamento.id,
-      categorias: categoriasCompletas,
-      totalPlanejado,
-      totalRealizado,
-      saldoGeral: totalPlanejado - totalRealizado
+      categoriasSaida,
+      categoriasEntrada,
+      totalPlanejadoSaida,
+      totalRealizadoSaida,
+      totalPlanejadoEntrada,
+      totalRealizadoEntrada,
+      saldoGeral: (totalRealizadoEntrada - totalRealizadoSaida),
+      saldoOrcamento: (totalPlanejadoSaida - totalRealizadoSaida)
     };
   },
 

@@ -6,17 +6,19 @@ import { deleteEntrada, getEntradas, updateEntradaCategory } from '@/lib/entrada
 import GenerativeLanguageApi from '@/lib/generative_ai_api';
 import { deleteSaida, getSaidas, updateSaidaCategoryAndType } from '@/lib/saidasDb';
 import { getConfiguracoes } from '@/lib/storeDb';
-import { getTagsByTransacao } from '@/lib/tagDb';
+import { normalizeTransactions, sortTransactionsByDate } from '@/lib/transactionMapper';
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { getTransactions } from '@/lib/transactionDb';
+import Pagination from '@/components/Pagination';
 
 export default function TransacoesPage() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tipo') === 'entrada' ? 'entradas' : (searchParams.get('tipo') === 'saida' ? 'saidas' : 'todas');
 
-  const [transacoes, setTransacoes] = useState([]);
+  const [transacoesData, setTransacoesData] = useState({ data: [], total: 0, page: 1, pageSize: 20 });
   const [activeTab, setActiveTab] = useState(initialTab); // todas, entradas, saidas, importar
   const [contas, setContas] = useState([]);
   const [categoriasSaidas, setCategoriasSaidas] = useState([]);
@@ -37,48 +39,45 @@ export default function TransacoesPage() {
   const [currentCategorizationType, setCurrentCategorizationType] = useState('saida');
   const [currentTransactionsForAI, setCurrentTransactionsForAI] = useState([]);
 
-  const loadData = async () => {
-    const [gs, rs, cs, catsG, catsR] = await Promise.all([
-      getSaidas(filters),
-      getEntradas(filters),
+  const loadData = async (page = 1) => {
+    const [cs, catsG, catsR] = await Promise.all([
       getContas(),
       getCategorias('saida'),
       getCategorias('entrada')
     ]);
 
-    // Format and merge
-    const normalizedSaidas = await Promise.all(gs.map(async g => ({
-      ...g,
-      tipo: 'saida',
-      valor: g.total,
-      descricao: g.apelido,
-      tags: await getTagsByTransacao(g.id)
-    })));
+    const queryFilters = {
+      ...filters,
+      page,
+      pageSize: transacoesData.pageSize,
+      tipo: activeTab === 'entradas' ? 'entrada' : (activeTab === 'saidas' ? 'saida' : ''),
+      // Map filters.categoria (name) to categoryId if needed, but getTransactions currently uses categoryId
+      // I'll update getTransactions to handle categoria (name) as well for compatibility
+    };
 
-    const normalizedEntradas = await Promise.all(rs.map(async r => ({
-      ...r,
-      tipo: 'entrada',
-      tags: await getTagsByTransacao(r.id)
-    })));
+    // Since filters.categoria is name, I'll find ID
+    if (filters.categoria) {
+      const cat = [...catsG, ...catsR].find(c => c.nome === filters.categoria);
+      if (cat) queryFilters.categoriaId = cat.id;
+    }
+    
+    if (filters.accountId) queryFilters.contaId = filters.accountId;
 
-    let merged = [...normalizedSaidas, ...normalizedEntradas];
+    const result = await getTransactions(queryFilters);
 
-    // Sort by date desc
-    merged.sort((a, b) => new Date(b.data) - new Date(a.data));
-
-    // Filter by tab
-    if (activeTab === 'entradas') merged = merged.filter(t => t.tipo === 'entrada');
-    if (activeTab === 'saidas') merged = merged.filter(t => t.tipo === 'saida');
-
-    setTransacoes(merged);
+    setTransacoesData(result);
     setContas(cs);
     setCategoriasSaidas(catsG);
     setCategoriasEntradas(catsR);
   };
 
   useEffect(() => {
-    loadData();
+    loadData(1);
   }, [filters, activeTab]);
+
+  const onPageChange = (p) => {
+    loadData(p);
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -99,7 +98,7 @@ export default function TransacoesPage() {
       return;
     }
 
-    const saidasParaCategorizar = transacoes.filter(t => t.tipo === 'saida');
+    const saidasParaCategorizar = transacoesData.data.filter(t => t.tipo === 'saida');
     if (saidasParaCategorizar.length === 0) {
       alert('Nenhuma saída encontrada para categorizar.');
       return;
@@ -137,7 +136,7 @@ export default function TransacoesPage() {
       return;
     }
 
-    const entradasParaCategorizar = transacoes.filter(t => t.tipo === 'entrada');
+    const entradasParaCategorizar = transacoesData.data.filter(t => t.tipo === 'entrada');
     if (entradasParaCategorizar.length === 0) {
       alert('Nenhuma entrada encontrada para categorizar.');
       return;
@@ -329,14 +328,14 @@ export default function TransacoesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {transacoes.length === 0 ? (
+                {transacoesData.data.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-20 text-center">
                       <p className="text-gray-400 font-medium">Nenhuma transação encontrada.</p>
                     </td>
                   </tr>
                 ) : (
-                  transacoes.map((t) => (
+                  transacoesData.data.map((t) => (
                     <tr key={`${t.tipo}-${t.id}`} className="group hover:bg-gray-50/50 transition-all">
                       <td className="px-6 py-4 text-sm text-gray-500">{new Date(t.data).toLocaleDateString('pt-BR')}</td>
                       <td className="px-6 py-4">
@@ -344,8 +343,8 @@ export default function TransacoesPage() {
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${t.tipo === 'entrada' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                             {t.tipo === 'entrada' ? '↗' : '↘'}
                           </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm font-bold text-gray-900">{t.descricao || '-'}</span>
+                          <div className="flex flex-col gap-1 min-w-0">
+                            <span className="text-sm font-bold text-gray-900 truncate max-w-[200px] md:max-w-[300px]" title={t.descricao || '-'}>{t.descricao || '-'}</span>
                             {t.tags && t.tags.length > 0 && (
                               <div className="flex flex-wrap gap-1">
                                 {t.tags.map(tag => (
@@ -359,7 +358,7 @@ export default function TransacoesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider">
+                        <span className="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider truncate max-w-[120px] inline-block" title={t.categoria || 'Outros'}>
                           {t.categoria || 'Outros'}
                         </span>
                       </td>
@@ -388,6 +387,13 @@ export default function TransacoesPage() {
                 )}
               </tbody>
             </table>
+            
+            <Pagination 
+              total={transacoesData.total} 
+              page={transacoesData.page} 
+              pageSize={transacoesData.pageSize} 
+              onPageChange={onPageChange} 
+            />
           </div>
         </>
       )}

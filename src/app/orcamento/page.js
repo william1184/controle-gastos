@@ -119,20 +119,30 @@ export default function OrcamentoPage() {
       </div>
 
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Total Planejado</p>
-          <p className="text-3xl font-black text-gray-900">{formatCurrency(resumo?.totalPlanejado || 0)}</p>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Renda Realizada</p>
+          <p className="text-2xl font-black text-green-600">{formatCurrency(resumo?.totalRealizadoEntrada || 0)}</p>
+          <p className="text-[10px] text-gray-400">Meta: {formatCurrency(resumo?.totalPlanejadoEntrada || 0)}</p>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Total Realizado</p>
-          <p className="text-3xl font-black text-gray-900">{formatCurrency(resumo?.totalRealizado || 0)}</p>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Saída Realizada</p>
+          <p className="text-2xl font-black text-red-600">{formatCurrency(resumo?.totalRealizadoSaida || 0)}</p>
+          <p className="text-[10px] text-gray-400">Limite: {formatCurrency(resumo?.totalPlanejadoSaida || 0)}</p>
+        </div>
+        <div className={`p-6 rounded-3xl border shadow-sm hover:shadow-md transition-shadow ${resumo?.saldoOrcamento >= 0 ? 'bg-blue-50 border-blue-100' : 'bg-orange-50 border-orange-100'}`}>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Saldo Orçamento</p>
+          <p className={`text-2xl font-black ${resumo?.saldoOrcamento >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+            {formatCurrency(resumo?.saldoOrcamento || 0)}
+          </p>
+          <p className="text-[10px] text-gray-400">Economia no mês</p>
         </div>
         <div className={`p-6 rounded-3xl border shadow-sm hover:shadow-md transition-shadow ${resumo?.saldoGeral >= 0 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Saldo do Orçamento</p>
-          <p className={`text-3xl font-black ${resumo?.saldoGeral >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Saldo Geral</p>
+          <p className={`text-2xl font-black ${resumo?.saldoGeral >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             {formatCurrency(resumo?.saldoGeral || 0)}
           </p>
+          <p className="text-[10px] text-gray-400">Renda - Saída</p>
         </div>
       </div>
 
@@ -157,92 +167,110 @@ export default function OrcamentoPage() {
         </button>
       </div>
 
-      {/* Tabela de Categorias */}
+      {/* Metas de Entrada */}
       <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-black text-xl text-gray-900">Limites por Categoria</h2>
-          <span className="text-xs font-bold bg-gray-100 text-gray-500 px-3 py-1 rounded-full uppercase">Saídas</span>
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-green-50/30">
+          <h2 className="font-black text-xl text-gray-900">Metas de Entrada</h2>
+          <span className="text-xs font-bold bg-green-100 text-green-600 px-3 py-1 rounded-full uppercase">Receitas</span>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {resumo?.categoriasEntrada.map((cat) => (
+            <BudgetRow key={cat.categoria_id} cat={cat} formatCurrency={formatCurrency} editingId={editingId} setEditingId={setEditingId} tempValue={tempValue} setTempValue={setTempValue} handleSaveLimite={handleSaveLimite} isIncome={true} />
+          ))}
+        </div>
+      </div>
+
+      {/* Limites de Saída */}
+      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-red-50/30">
+          <h2 className="font-black text-xl text-gray-900">Limites de Saída</h2>
+          <span className="text-xs font-bold bg-red-100 text-red-600 px-3 py-1 rounded-full uppercase">Gastos</span>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {resumo?.categoriasSaida.map((cat) => (
+            <BudgetRow key={cat.categoria_id} cat={cat} formatCurrency={formatCurrency} editingId={editingId} setEditingId={setEditingId} tempValue={tempValue} setTempValue={setTempValue} handleSaveLimite={handleSaveLimite} isIncome={false} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BudgetRow({ cat, formatCurrency, editingId, setEditingId, tempValue, setTempValue, handleSaveLimite, isIncome }) {
+  return (
+    <div className="p-6 hover:bg-gray-50/50 transition-colors">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
+            {cat.categoria_nome.charAt(0)}
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">{cat.categoria_nome}</h3>
+            <p className="text-xs font-medium text-gray-400">
+              Realizado: <span className="text-gray-600">{formatCurrency(cat.valor_realizado)}</span>
+            </p>
+          </div>
         </div>
 
-        <div className="divide-y divide-gray-100">
-          {resumo?.categorias.map((cat) => (
-            <div key={cat.categoria_id} className="p-6 hover:bg-gray-50/50 transition-colors">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-lg shadow-sm">
-                    {cat.categoria_nome.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">{cat.categoria_nome}</h3>
-                    <p className="text-xs font-medium text-gray-400">
-                      Realizado: <span className="text-gray-600">{formatCurrency(cat.valor_realizado)}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <p className="text-xs font-bold text-gray-400 uppercase mb-1">Limite</p>
-                    {editingId === cat.categoria_id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={tempValue}
-                          onChange={(e) => setTempValue(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSaveLimite(cat.categoria_id, tempValue)}
-                          onBlur={() => setEditingId(null)}
-                          className="w-24 px-2 py-1 border border-blue-400 rounded-lg text-sm font-bold text-right focus:ring-2 focus:ring-blue-100 outline-none"
-                        />
-                        <button onClick={() => handleSaveLimite(cat.categoria_id, tempValue)} className="text-green-500 hover:text-green-600">✓</button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setEditingId(cat.categoria_id);
-                          setTempValue(cat.valor_limite.toString());
-                        }}
-                        className="font-black text-gray-900 hover:text-blue-600 transition-colors cursor-pointer group"
-                      >
-                        {formatCurrency(cat.valor_limite)}
-                        <span className="ml-1 opacity-0 group-hover:opacity-100 text-xs">✎</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="text-right w-32">
-                    <p className="text-xs font-bold text-gray-400 uppercase mb-1">Saldo</p>
-                    <p className={`font-black ${cat.saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(cat.saldo)}
-                    </p>
-                  </div>
-                </div>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-xs font-bold text-gray-400 uppercase mb-1">{isIncome ? 'Meta' : 'Limite'}</p>
+            {editingId === cat.categoria_id ? (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  value={tempValue}
+                  onChange={(e) => setTempValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveLimite(cat.categoria_id, tempValue)}
+                  onBlur={() => setEditingId(null)}
+                  className="w-24 px-2 py-1 border border-blue-400 rounded-lg text-sm font-bold text-right focus:ring-2 focus:ring-blue-100 outline-none"
+                />
+                <button onClick={() => handleSaveLimite(cat.categoria_id, tempValue)} className="text-green-500 hover:text-green-600">✓</button>
               </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditingId(cat.categoria_id);
+                  setTempValue(cat.valor_limite.toString());
+                }}
+                className="font-black text-gray-900 hover:text-blue-600 transition-colors cursor-pointer group"
+              >
+                {formatCurrency(cat.valor_limite)}
+                <span className="ml-1 opacity-0 group-hover:opacity-100 text-xs">✎</span>
+              </button>
+            )}
+          </div>
 
-              {/* Barra de Progresso */}
-              <div className="relative pt-1">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <span className={`text-[10px] font-black inline-block py-1 px-2 uppercase rounded-full ${cat.raw_percentual >= 100 ? 'bg-red-100 text-red-600' :
-                      cat.raw_percentual >= 80 ? 'bg-orange-100 text-orange-600' :
-                        'bg-blue-100 text-blue-600'
-                      }`}>
-                      {cat.raw_percentual.toFixed(1)}% utilizado
-                    </span>
-                  </div>
-                </div>
-                <div className="overflow-hidden h-2.5 text-xs flex rounded-full bg-gray-100">
-                  <div
-                    style={{ width: `${cat.percentual}%` }}
-                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-1000 ${cat.raw_percentual >= 100 ? 'bg-red-500' :
-                      cat.raw_percentual >= 80 ? 'bg-orange-400' :
-                        'bg-blue-500'
-                      }`}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          ))}
+          <div className="text-right w-32">
+            <p className="text-xs font-bold text-gray-400 uppercase mb-1">Saldo</p>
+            <p className={`font-black ${cat.saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {formatCurrency(cat.saldo)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Barra de Progresso */}
+      <div className="relative pt-1">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <span className={`text-[10px] font-black inline-block py-1 px-2 uppercase rounded-full ${isIncome ? (cat.raw_percentual >= 100 ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600') : (cat.raw_percentual >= 100 ? 'bg-red-100 text-red-600' :
+              cat.raw_percentual >= 80 ? 'bg-orange-100 text-orange-600' :
+                'bg-blue-100 text-blue-600'
+            )}`}>
+              {cat.raw_percentual.toFixed(1)}% {isIncome ? 'alcançado' : 'utilizado'}
+            </span>
+          </div>
+        </div>
+        <div className="overflow-hidden h-2.5 text-xs flex rounded-full bg-gray-100">
+          <div
+            style={{ width: `${cat.percentual}%` }}
+            className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-1000 ${isIncome ? 'bg-green-500' : (cat.raw_percentual >= 100 ? 'bg-red-500' :
+              cat.raw_percentual >= 80 ? 'bg-orange-400' :
+                'bg-blue-500'
+            )}`}
+          ></div>
         </div>
       </div>
     </div>

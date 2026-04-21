@@ -2,11 +2,20 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
 
 const menuItems = [
   { name: 'Dashboard', icon: '🏠', href: '/dashboard' },
-  { name: 'Transações', icon: '💸', href: '/transacoes' },
-  { name: 'Itens', icon: '🧾', href: '/itens' },
+  { 
+    name: 'Transações', 
+    icon: '💸', 
+    href: '/transacoes',
+    submenu: [
+      { name: 'Histórico', icon: '📋', href: '/transacoes' },
+      { name: 'Consulta', icon: '🔍', href: '/transacoes/consulta' },
+      { name: 'Itens', icon: '🧾', href: '/itens' },
+    ]
+  },
   { name: 'Orçamento', icon: '📊', href: '/orcamento' },
   { name: 'Recorrências', icon: '🔁', href: '/recorrencias' },
   { name: 'Categorias', icon: '🗂️', href: '/categorias' },
@@ -17,6 +26,21 @@ const menuItems = [
 
 export default function Sidebar({ activeEntidade, handleSwitchEntidade }) {
   const pathname = usePathname();
+  const [openSubmenu, setOpenSubmenu] = useState(null);
+
+  // Auto-open submenu if pathname matches a child
+  useEffect(() => {
+    const activeItem = menuItems.find(item => 
+      item.submenu?.some(sub => pathname === sub.href)
+    );
+    if (activeItem) {
+      setOpenSubmenu(activeItem.name);
+    }
+  }, [pathname]);
+
+  const toggleSubmenu = (name) => {
+    setOpenSubmenu(openSubmenu === name ? null : name);
+  };
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
@@ -30,23 +54,74 @@ export default function Sidebar({ activeEntidade, handleSwitchEntidade }) {
       <nav className="flex-grow overflow-y-auto p-4 space-y-1">
         <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Menu Principal</p>
         {menuItems.map((item) => {
-          const isActive = pathname === item.href;
+          const hasSubmenu = item.submenu && item.submenu.length > 0;
+          const isChildActive = hasSubmenu && item.submenu.some(sub => pathname === sub.href);
+          const isActive = pathname === item.href || isChildActive;
+          const isOpen = openSubmenu === item.name;
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
-                isActive 
-                  ? 'bg-blue-50 text-blue-600 font-bold' 
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              <span className={`text-xl transition-transform group-hover:scale-110 ${isActive ? 'grayscale-0' : 'grayscale opacity-70'}`}>
-                {item.icon}
-              </span>
-              <span className="text-sm">{item.name}</span>
-              {isActive && <div className="ml-auto w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
-            </Link>
+            <div key={item.name} className="space-y-1">
+              {hasSubmenu ? (
+                <button
+                  onClick={() => toggleSubmenu(item.name)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                    isActive 
+                      ? 'bg-blue-50/50 text-blue-600 font-bold' 
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <span className={`text-xl transition-transform group-hover:scale-110 ${isActive ? 'grayscale-0' : 'grayscale opacity-70'}`}>
+                    {item.icon}
+                  </span>
+                  <span className="text-sm">{item.name}</span>
+                  <svg 
+                    className={`ml-auto w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                    isActive 
+                      ? 'bg-blue-50 text-blue-600 font-bold' 
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
+                >
+                  <span className={`text-xl transition-transform group-hover:scale-110 ${isActive ? 'grayscale-0' : 'grayscale opacity-70'}`}>
+                    {item.icon}
+                  </span>
+                  <span className="text-sm">{item.name}</span>
+                  {isActive && <div className="ml-auto w-1.5 h-1.5 bg-blue-600 rounded-full"></div>}
+                </Link>
+              )}
+
+              {hasSubmenu && isOpen && (
+                <div className="ml-4 pl-4 border-l border-gray-100 space-y-1 mt-1">
+                  {item.submenu.map((sub) => {
+                    const isSubActive = pathname === sub.href;
+                    return (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all ${
+                          isSubActive 
+                            ? 'text-blue-600 font-bold bg-blue-50/50' 
+                            : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="text-sm">{sub.icon}</span>
+                        <span className="text-xs">{sub.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

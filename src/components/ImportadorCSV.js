@@ -5,6 +5,7 @@ import { getActiveEntidade } from '@/lib/entidadeDb';
 import { addEntrada } from '@/lib/entradasDb';
 import { addSaida } from '@/lib/saidasDb';
 import { getActiveUsuario } from '@/lib/usuarioDb';
+import { parseCsvLine, parseCsvDate, parseCsvCurrency, detectCsvColumns } from '@/lib/csvUtils';
 import { useEffect, useState } from 'react';
 
 export default function ImportadorCSV({ onImportComplete }) {
@@ -49,69 +50,29 @@ export default function ImportadorCSV({ onImportComplete }) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const text = e.target.result;
+        const arrayBuffer = e.target.result;
+        
+        // Try decoding as UTF-8 first
+        let decoder = new TextDecoder('utf-8');
+        let text = decoder.decode(arrayBuffer);
+        
+        // Check if there are "replacement characters" () which indicate decoding issues
+        if (text.includes('\ufffd')) {
+          // If UTF-8 failed, try ISO-8859-1 (Latin1)
+          decoder = new TextDecoder('iso-8859-1');
+          text = decoder.decode(arrayBuffer);
+        }
+
         const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
         if (lines.length === 0) return;
 
         const separator = text.indexOf(';') > -1 ? ';' : ',';
 
-        const parseLine = (line) => {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"' && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === separator && !inQuotes) {
-              result.push(current);
-              current = '';
-            } else {
-              current += char;
-            }
-          }
-          result.push(current);
-          return result;
-        };
-
-        const headersRaw = parseLine(lines[0]);
+        const headersRaw = parseCsvLine(lines[0], separator);
         const headers = headersRaw.map(h => h.trim());
-        const headersLower = headers.map(h => h.toLowerCase());
-        const dataRows = lines.slice(1).map(l => parseLine(l));
+        const dataRows = lines.slice(1).map(l => parseCsvLine(l, separator));
 
-        let dateIdx = headersLower.findIndex(h => h.includes('data') || h.includes('date'));
-        let valIdx = headersLower.findIndex(h => h === 'valor' || h === 'amount' || h.includes('deb_cred') || h.includes('deb') || h.includes('cred') || h.includes('valor'));
-        let descIdx = headersLower.findIndex(h => h.includes('descri') || h.includes('hist') || h.includes('detalhe') || h.includes('lançamento') || h.includes('estabelecimento'));
-
-        if (dateIdx === -1 || valIdx === -1) {
-          const sampleRows = dataRows.slice(0, 10);
-          for (let col = 0; col < headers.length; col++) {
-            let matchesDate = 0;
-            let matchesValue = 0;
-            sampleRows.forEach(row => {
-              const val = (row[col] || '').trim();
-              if (/^(\d{2})\/(\d{2})\/(\d{4})$/.test(val) || /^(\d{4})-(\d{2})-(\d{2})$/.test(val)) matchesDate++;
-              if (/[0-9]/.test(val) && (val.includes(',') || val.includes('.')) && !val.includes('/')) matchesValue++;
-            });
-            if (dateIdx === -1 && matchesDate > sampleRows.length / 2) dateIdx = col;
-            else if (valIdx === -1 && matchesValue > sampleRows.length / 2) valIdx = col;
-          }
-        }
-
-        if (descIdx === -1) {
-          let maxLen = -1;
-          for (let col = 0; col < headers.length; col++) {
-            if (col === dateIdx || col === valIdx) continue;
-            let avgLen = dataRows.slice(0, 5).reduce((acc, row) => acc + (row[col]?.length || 0), 0) / 5;
-            if (avgLen > maxLen) {
-              maxLen = avgLen;
-              descIdx = col;
-            }
-          }
-        }
+        const { dateIdx, valIdx, descIdx } = detectCsvColumns(headers, dataRows);
 
         setCsvHeaders(headers);
         setCsvLines(dataRows);
@@ -127,7 +88,7 @@ export default function ImportadorCSV({ onImportComplete }) {
         alert('Ocorreu um erro ao processar o extrato.');
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmMapping = async () => {
@@ -144,37 +105,13 @@ export default function ImportadorCSV({ onImportComplete }) {
     let novosSaidas = [];
     let novasEntradas = [];
 
-    const parseDate = (str) => {
-      const s = str.trim();
-      if (/^(\d{2})\/(\d{2})\/(\d{4})$/.test(s)) {
-        const parts = s.split('/');
-        return `${parts[2]}-${parts[1]}-${parts[0]}`;
-      } else if (/^(\d{4})-(\d{2})-(\d{2})$/.test(s)) {
-        return s;
-      }
-      return null;
-    };
-
-    const parseCurrency = (str) => {
-      let s = str.trim().replace(/[a-zA-Z\sR$]/g, '');
-      if (s === '') return null;
-      if (s.includes('.') && s.includes(',')) {
-        const lastDot = s.lastIndexOf('.');
-        const lastComma = s.lastIndexOf(',');
-        if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
-        else s = s.replace(/,/g, '');
-      } else if (s.includes(',')) s = s.replace(',', '.');
-      const num = parseFloat(s);
-      return isNaN(num) ? null : num;
-    };
-
     for (let i = 0; i < csvLines.length; i++) {
       const cols = csvLines[i];
       if (cols.length < 2) continue;
 
-      let data = parseDate(cols[dateIdx] || '');
+      let data = parseCsvDate(cols[dateIdx] || '');
       let rawValor = (cols[valIdx] || '').trim().toUpperCase();
-      let valorParsed = parseCurrency(rawValor);
+      let valorParsed = parseCsvCurrency(rawValor);
       let descricao = descIdx !== -1 ? (cols[descIdx] || '').trim() : '';
 
       if (data && valorParsed !== null && valorParsed !== 0) {

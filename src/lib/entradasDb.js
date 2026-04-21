@@ -21,8 +21,7 @@ export async function getEntradas(filters = {}) {
   const activeEntidade = await getActiveEntidade();
   const entidadeId = activeEntidade?.id || 0;
 
-  let query = `
-    SELECT t.*, c.nome as categoria_nome, co.nome as conta_nome 
+  let queryBase = `
     FROM transacao t
     LEFT JOIN categoria c ON t.categoria_id = c.id
     LEFT JOIN conta co ON t.conta_id = co.id
@@ -33,31 +32,49 @@ export async function getEntradas(filters = {}) {
   const params = [entidadeId];
 
   if (filters.categoria) {
-    query += " AND c.nome = ?";
+    queryBase += " AND c.nome = ?";
     params.push(filters.categoria);
   }
 
   if (filters.accountId) {
-    query += " AND t.conta_id = ?";
+    queryBase += " AND t.conta_id = ?";
     params.push(filters.accountId);
   }
 
   if (filters.startDate) {
-    query += " AND t.data >= ?";
+    queryBase += " AND t.data >= ?";
     params.push(filters.startDate);
   }
 
   if (filters.endDate) {
-    query += " AND t.data <= ?";
+    queryBase += " AND t.data <= ?";
     params.push(filters.endDate);
   }
 
+  // Get total count
+  const countRes = db.exec(`SELECT COUNT(*) as total ${queryBase}`, params);
+  const total = countRes[0]?.values[0][0] || 0;
+
+  let query = `SELECT t.*, c.nome as categoria_nome, co.nome as conta_nome ${queryBase}`;
   query += " ORDER BY t.data DESC";
+
+  const page = filters.page || 1;
+  const pageSize = filters.pageSize || 1000;
+  
+  if (filters.page) {
+    query += " LIMIT ? OFFSET ?";
+    params.push(pageSize);
+    params.push((page - 1) * pageSize);
+  }
 
   const res = db.exec(query, params);
 
-  if (!res[0]) return [];
-  return res[0].values.map(row => {
+  if (!res[0]) {
+     if (filters.page) return { data: [], total, page, pageSize };
+     return [];
+  }
+
+  const data = res[0].values.map(row => {
     const obj = {};
     res[0].columns.forEach((col, i) => obj[col] = row[i]);
     return {
@@ -72,6 +89,17 @@ export async function getEntradas(filters = {}) {
       recorrenciaId: obj.recorrencia_id
     };
   });
+
+  if (filters.page) {
+    return {
+      data,
+      total,
+      page,
+      pageSize
+    };
+  }
+
+  return data;
 }
 
 export async function getEntradaById(id) {

@@ -1,22 +1,23 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { getItens, deleteItem, updateItem } from '@/lib/itensDb';
+import Pagination from '@/components/Pagination';
 
 export default function ItensPage() {
-  const [itens, setItens] = useState([]);
+  const [data, setData] = useState({ data: [], total: 0, page: 1, pageSize: 15 });
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedItemForHistory, setSelectedItemForHistory] = useState(null);
 
-  const loadData = async () => {
+  const loadData = async (page = 1) => {
     setIsLoading(true);
-    const data = await getItens({ nome: search });
-    setItens(data);
+    const result = await getItens({ nome: search, page, pageSize: data.pageSize });
+    setData(result);
     setIsLoading(false);
   };
 
   useEffect(() => {
-    loadData();
+    loadData(1);
   }, [search]);
 
   const handleDelete = async (id) => {
@@ -26,8 +27,10 @@ export default function ItensPage() {
   };
 
   // Group items by name to show "Price History" for the selected item
+  // Note: For history, we might want to fetch all instances of the item, 
+  // but for now we filter from the current page's data.
   const itemHistory = selectedItemForHistory 
-    ? itens.filter(i => i.nome === selectedItemForHistory).sort((a, b) => new Date(a.data) - new Date(b.data))
+    ? data.data.filter(i => i.nome === selectedItemForHistory).sort((a, b) => new Date(a.data) - new Date(b.data))
     : [];
 
   return (
@@ -54,7 +57,7 @@ export default function ItensPage() {
         <div className="lg:col-span-2 space-y-4">
           {isLoading ? (
              <div className="p-20 text-center text-gray-400">Carregando itens...</div>
-          ) : itens.length === 0 ? (
+          ) : data.data.length === 0 ? (
             <div className="bg-white p-20 rounded-3xl border border-gray-100 text-center">
               <p className="text-gray-400 font-medium">Nenhum item encontrado.</p>
             </div>
@@ -71,16 +74,16 @@ export default function ItensPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {itens.map((item) => (
+                  {data.data.map((item) => (
                     <tr key={item.id} className="group hover:bg-gray-50/50 transition-all cursor-pointer" onClick={() => setSelectedItemForHistory(item.nome)}>
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">{item.nome}</p>
-                          <p className="text-[10px] text-gray-400 uppercase font-bold">{item.categoriaNome}</p>
+                      <td className="px-6 py-4 max-w-[150px]">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate" title={item.nome}>{item.nome}</p>
+                          <p className="text-[10px] text-gray-400 uppercase font-bold truncate" title={item.categoriaNome}>{item.categoriaNome}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                         <p className="text-xs text-gray-500 font-medium">{item.transacaoDescricao || 'Sem descrição'}</p>
+                      <td className="px-6 py-4 max-w-[200px]">
+                         <p className="text-xs text-gray-500 font-medium truncate" title={item.transacaoDescricao || 'Sem descrição'}>{item.transacaoDescricao || 'Sem descrição'}</p>
                          <p className="text-[10px] text-gray-400">{new Date(item.data).toLocaleDateString('pt-BR')}</p>
                       </td>
                       <td className="px-6 py-4 text-sm text-right text-gray-600 font-medium">
@@ -98,6 +101,13 @@ export default function ItensPage() {
                   ))}
                 </tbody>
               </table>
+
+              <Pagination 
+                total={data.total} 
+                page={data.page} 
+                pageSize={data.pageSize} 
+                onPageChange={(p) => loadData(p)} 
+              />
             </div>
           )}
         </div>

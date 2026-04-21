@@ -2,11 +2,14 @@
 import { getActiveEntidade, updateEntidade } from '@/lib/entidadeDb';
 import { syncDatabase } from '@/lib/googleDriveSync';
 import { getConfiguracoes, setConfiguracoes } from '@/lib/storeDb';
+import { getConfig, setConfig, migrateLegacyConfigs } from '@/lib/configuracaoDb';
+import { getActiveUsuario } from '@/lib/usuarioDb';
+import { APP_VERSION } from '@/lib/constants';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import packageJson from '../../../package.json';
 
 export default function Configuracoes() {
+  const [activeUser, setActiveUser] = useState(null);
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [categoriasSaidas, setCategoriasSaidas] = useState([]);
   const [categoriasEntradas, setCategoriasEntradas] = useState([]);
@@ -39,25 +42,29 @@ export default function Configuracoes() {
 
   useEffect(() => {
     const loadData = async () => {
-      const config = await getConfiguracoes();
+      await migrateLegacyConfigs(); // Migration check
+      
+      const user = await getActiveUsuario();
+      setActiveUser(user);
 
-      setGeminiApiKey(config.geminiApiKey || '');
+      // Global Settings
+      setGeminiApiKey(await getConfig('geminiApiKey') || '');
+      setGoogleDriveClientId(await getConfig('googleDriveClientId') || '');
+      setGoogleDriveApiKey(await getConfig('googleDriveApiKey') || '');
+      setGoogleDriveSyncEnabled(!!(await getConfig('googleDriveSyncEnabled')));
+      setOneDriveClientId(await getConfig('oneDriveClientId') || '');
 
-      let catSaidas = config.categoriasSaidas || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
-      if (catSaidas.length > 0 && typeof catSaidas[0] === 'object') {
-        catSaidas = catSaidas.map(c => c.nome);
-      }
+      // User Preferences (with fallback to global)
+      const userId = user?.id;
+      setMoeda(await getConfig('moeda', userId) || await getConfig('moeda') || 'R$');
+      setFormatoData(await getConfig('formatoData', userId) || await getConfig('formatoData') || 'DD/MM/YYYY');
+      setLabels(await getConfig('labels', userId) || await getConfig('labels') || { saida: 'Saida', entrada: 'Entrada', conta: 'Conta' });
+
+      // Legacy support for categories (keep using storeDb for now or migrate them too)
+      const legacyConfig = await getConfiguracoes();
+      let catSaidas = legacyConfig.categoriasSaidas || ['Moradia', 'Contas', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Investimentos', 'Outros'];
       setCategoriasSaidas(catSaidas);
-      setCategoriasEntradas(config.categoriasEntradas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
-
-      setGoogleDriveClientId(config.googleDriveClientId || '');
-      setGoogleDriveApiKey(config.googleDriveApiKey || '');
-      setGoogleDriveSyncEnabled(!!config.googleDriveSyncEnabled);
-      setOneDriveClientId(config.oneDriveClientId || '');
-
-      setMoeda(config.moeda || 'R$');
-      setFormatoData(config.formatoData || 'DD/MM/YYYY');
-      if (config.labels) setLabels(config.labels);
+      setCategoriasEntradas(legacyConfig.categoriasEntradas || ['Salário', 'Freelance', 'Investimentos', 'Rendimentos', 'Outros']);
 
       // Load active entity
       const entity = await getActiveEntidade();
@@ -71,19 +78,17 @@ export default function Configuracoes() {
   }, []);
 
   const handleSave = async () => {
-    const config = {
-      geminiApiKey,
-      categoriasSaidas,
-      categoriasEntradas,
-      googleDriveClientId,
-      googleDriveApiKey,
-      googleDriveSyncEnabled,
-      oneDriveClientId,
-      moeda,
-      formatoData,
-      labels
-    };
-    await setConfiguracoes(config);
+    // Global Settings
+    await setConfig('geminiApiKey', geminiApiKey);
+    await setConfig('googleDriveClientId', googleDriveClientId);
+    await setConfig('googleDriveApiKey', googleDriveApiKey);
+    await setConfig('googleDriveSyncEnabled', googleDriveSyncEnabled);
+
+    // User Preferences
+    const userId = activeUser?.id;
+    await setConfig('moeda', moeda, userId);
+    await setConfig('formatoData', formatoData, userId);
+    await setConfig('labels', labels, userId);
 
     if (entidadeId) {
       await updateEntidade(entidadeId, {
@@ -379,7 +384,7 @@ export default function Configuracoes() {
       </div>
 
       <div className="max-w-3xl text-center text-gray-400 text-sm mt-12 pb-8">
-        <p>Meu Mercado AI - Versão {packageJson.version}</p>
+        <p>Meu Mercado AI - Versão {APP_VERSION}</p>
       </div>
     </div>
   );

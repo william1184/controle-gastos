@@ -5,6 +5,7 @@ import GenerativeLanguageApi from '@/lib/generative_ai_api';
 import { getSaidas } from '@/lib/saidasDb';
 import { getConfiguracoes, getHistoricoInsights, setHistoricoInsights as saveHistoricoInsights } from '@/lib/storeDb';
 import { getUsuarios } from '@/lib/usuarioDb';
+import { calculateTotals, calculateTotalsByCategory, calculateTotalsByCostType } from '@/lib/financialCalculations';
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -123,32 +124,15 @@ export default function Dashboard() {
     return matchMes && matchUsuario;
   });
 
-  const totalSaidas = saidasFiltrados.reduce((acc, saida) => acc + (Number(saida.total) || 0), 0);
-  const totalEntradas = entradasFiltradas.reduce((acc, entrada) => acc + (Number(entrada.valor) || 0), 0);
+  const totalSaidas = calculateTotals(saidasFiltrados, 'total');
+  const totalEntradas = calculateTotals(entradasFiltradas, 'valor');
 
-  const saidasPorCategoria = saidasFiltrados.reduce((acc, g) => {
-    const cat = g.categoria || 'Sem Categoria';
-    acc[cat] = (acc[cat] || 0) + (Number(g.total) || 0);
-    return acc;
-  }, {});
+  const saidasPorCategoria = calculateTotalsByCategory(saidasFiltrados, 'total');
+  const entradasPorCategoria = calculateTotalsByCategory(entradasFiltradas, 'valor');
 
-  const entradasPorCategoria = entradasFiltradas.reduce((acc, r) => {
-    const cat = r.categoria || 'Sem Categoria';
-    acc[cat] = (acc[cat] || 0) + (Number(r.valor) || 0);
-    return acc;
-  }, {});
-
-  const despesasFixas = saidasFiltrados.reduce((acc, g) => {
-    let tipo = g.tipoCusto;
-    if (tipo === 'Fixo') return acc + (Number(g.total) || 0);
-    return acc;
-  }, 0);
-
-  const despesasVariaveis = saidasFiltrados.reduce((acc, g) => {
-    let tipo = g.tipoCusto;
-    if (tipo === 'Variável') return acc + (Number(g.total) || 0);
-    return acc;
-  }, 0);
+  const costsByType = calculateTotalsByCostType(saidasFiltrados, 'total');
+  const despesasFixas = costsByType['Fixo'] || 0;
+  const despesasVariaveis = costsByType['Variável'] || 0;
 
   const formatMonth = (yyyyMM) => {
     if (!yyyyMM) return '';

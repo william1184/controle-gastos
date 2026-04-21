@@ -7,8 +7,7 @@ export async function getItens(filters = {}) {
   const activeEntidade = await getActiveEntidade();
   const entidadeId = activeEntidade?.id || 0;
 
-  let query = `
-    SELECT i.*, t.data, t.descricao as transacao_descricao, c.nome as categoria_nome
+  let queryBase = `
     FROM itens_transacao i
     JOIN transacao t ON i.transacao_id = t.id
     JOIN usuario u ON t.usuario_id = u.id
@@ -19,22 +18,39 @@ export async function getItens(filters = {}) {
   const params = [entidadeId];
 
   if (filters.nome) {
-    query += " AND i.nome LIKE ?";
+    queryBase += " AND i.nome LIKE ?";
     params.push(`%${filters.nome}%`);
   }
 
   if (filters.categoriaId) {
-    query += " AND t.categoria_id = ?";
+    queryBase += " AND t.categoria_id = ?";
     params.push(filters.categoriaId);
   }
 
+  // Get total count
+  const countRes = db.exec(`SELECT COUNT(*) as total ${queryBase}`, params);
+  const total = countRes[0]?.values[0][0] || 0;
+
+  let query = `SELECT i.*, t.data, t.descricao as transacao_descricao, c.nome as categoria_nome ${queryBase}`;
   query += " ORDER BY t.data DESC";
+
+  const page = filters.page || 1;
+  const pageSize = filters.pageSize || 1000;
+  
+  if (filters.page) {
+    query += " LIMIT ? OFFSET ?";
+    params.push(pageSize);
+    params.push((page - 1) * pageSize);
+  }
 
   const res = db.exec(query, params);
   
-  if (!res[0]) return [];
+  if (!res[0]) {
+    if (filters.page) return { data: [], total, page, pageSize };
+    return [];
+  }
   
-  return res[0].values.map(row => {
+  const data = res[0].values.map(row => {
     const obj = {};
     res[0].columns.forEach((col, i) => obj[col] = row[i]);
     return {
@@ -50,6 +66,17 @@ export async function getItens(filters = {}) {
       categoriaNome: obj.categoria_nome || 'Outros'
     };
   });
+
+  if (filters.page) {
+    return {
+      data,
+      total,
+      page,
+      pageSize
+    };
+  }
+
+  return data;
 }
 
 export async function updateItem(id, item) {

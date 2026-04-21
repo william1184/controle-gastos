@@ -75,20 +75,7 @@ describe('GenerativeLanguageApi', () => {
     expect(result[0].categoria_sugerida).toBe('Salário');
   });
 
-  test('suggestCategories should handle empty suggestions', async () => {
-    const mockGenerateContent = jest.fn().mockResolvedValue({
-      response: {
-        text: () => '[]'
-      }
-    });
-
-    const mockGenAI = new GoogleGenerativeAI();
-    mockGenAI.getGenerativeModel.mockReturnValue({
-      generateContent: mockGenerateContent
-    });
-    api.genAI = mockGenAI;
-
-    const result = await api.suggestCategories([], []);
-    expect(result).toEqual([]);
+  test('suggestCategories should throw if categories are empty', async () => {
+    await expect(api.suggestCategories([], [])).rejects.toThrow("Lista de categorias vazia.");
   });
 });
