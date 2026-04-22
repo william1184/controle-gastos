@@ -5,11 +5,15 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "cross-env NEXT_PUBLIC_CLEAN_DB=true next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
+    "test:e2e": "playwright test",
+    "test:e2e:clean": "cross-env NEXT_PUBLIC_CLEAN_DB=true playwright test",
     "electron": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:clean": "concurrently \"yarn dev:clean\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "next build && electron-builder"
   },
   "dependencies": {
@@ -24,10 +28,12 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^41.2.1",
     "electron-builder": "^26.8.1",
     "eslint": "^8",

@@ -130,206 +130,252 @@ export default function NovaSaida() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-black text-gray-800">Nova Saída</h1>
-          <div className="flex bg-white rounded-xl p-1 shadow-sm border border-gray-200">
-            <button
-              onClick={() => setMode('quick')}
-              className={`px-6 py-2 rounded-lg font-bold transition-all ${mode === 'quick' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Rápido
-            </button>
-            <button
-              onClick={() => setMode('full')}
-              className={`px-6 py-2 rounded-lg font-bold transition-all ${mode === 'full' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Completo
-            </button>
-          </div>
+    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in-up pb-12">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 px-4 md:px-0">
+        <div>
+          <h1 className="text-3xl font-black text-[var(--foreground)] tracking-tight">Nova Saída</h1>
+          <p className="text-[var(--muted)] font-medium">Registre seus gastos de forma simples ou detalhada.</p>
         </div>
+        <div className="flex bg-[var(--card)]/50 backdrop-blur-sm rounded-2xl p-1.5 shadow-sm border border-[var(--border)] w-full md:w-auto">
+          <button
+            onClick={() => setMode('quick')}
+            className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${mode === 'quick' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
+          >
+            Rápido
+          </button>
+          <button
+            onClick={() => setMode('full')}
+            className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${mode === 'full' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-[var(--muted)] hover:text-[var(--foreground)]'}`}
+          >
+            Completo
+          </button>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Descrição / Apelido *</label>
-                  <input
-                    type="text"
-                    value={apelido}
-                    onChange={(e) => setApelido(e.target.value)}
-                    placeholder="Ex: Almoço, Supermercado..."
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Data *</label>
-                  <input
-                    type="date"
-                    value={data}
-                    onChange={(e) => setData(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Categoria</label>
-                  <select
-                    value={categoria}
-                    onChange={(e) => setCategoria(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all font-medium"
-                  >
-                    {categorias.map(cat => <option key={cat.id} value={cat.nome}>{cat.nome}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Tipo de Custo</label>
-                  <select
-                    value={tipoCusto}
-                    onChange={(e) => setTipoCusto(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all font-medium"
-                  >
-                    <option value="Variável">Variável</option>
-                    <option value="Fixo">Fixo</option>
-                  </select>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-4 md:px-0">
+        <div className="lg:col-span-2 space-y-8">
+          <div className="card-premium p-8">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-8 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+              Informações Básicas
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Descrição / Apelido *</label>
+                <input
+                  type="text"
+                  value={apelido}
+                  onChange={(e) => setApelido(e.target.value)}
+                  placeholder="Ex: Almoço, Supermercado..."
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm outline-none focus:border-blue-500 transition-all text-[var(--foreground)]"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Data *</label>
+                <input
+                  type="date"
+                  value={data}
+                  onChange={(e) => setData(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm outline-none focus:border-blue-500 transition-all text-[var(--foreground)]"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Categoria</label>
+                <select
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm outline-none focus:border-blue-500 transition-all cursor-pointer text-[var(--foreground)]"
+                >
+                  {categorias.map(cat => <option key={cat.id} value={cat.nome}>{cat.nome}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Tipo de Custo</label>
+                <select
+                  value={tipoCusto}
+                  onChange={(e) => setTipoCusto(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm outline-none focus:border-blue-500 transition-all cursor-pointer text-[var(--foreground)]"
+                >
+                  <option value="Variável">Variável</option>
+                  <option value="Fixo">Fixo</option>
+                </select>
               </div>
             </div>
-
-            {mode === 'full' && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-black text-gray-800">Itens / Produtos</h2>
-                  <button
-                    onClick={handleAddProduto}
-                    className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl hover:bg-blue-100 transition font-bold flex items-center gap-2"
-                  >
-                    <span>➕</span> Novo Item
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {produtos.length === 0 ? (
-                    <p className="py-8 text-center text-gray-400 italic">Nenhum item adicionado.</p>
-                  ) : (
-                    produtos.map((produto, index) => (
-                      <div key={index} className="flex flex-wrap md:flex-nowrap gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                        <div className="flex-grow">
-                          <input
-                            type="text"
-                            placeholder="Produto"
-                            value={produto.nome}
-                            onChange={(e) => handleProdutoChange(index, 'nome', e.target.value)}
-                            className="w-full p-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium"
-                          />
-                        </div>
-                        <div className="w-20">
-                          <input
-                            type="number"
-                            value={produto.quantidade}
-                            onChange={(e) => handleProdutoChange(index, 'quantidade', parseFloat(e.target.value) || 0)}
-                            className="w-full p-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-center"
-                          />
-                        </div>
-                        <div className="w-32">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={produto.preco_unitario}
-                            onChange={(e) => handleProdutoChange(index, 'preco_unitario', parseFloat(e.target.value) || 0)}
-                            className="w-full p-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                          />
-                        </div>
-                        <div className="w-32 text-right p-2 font-black text-gray-700">
-                          R$ {produto.preco_total.toFixed(2)}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-gray-100 flex justify-between items-center">
-                  <span className="text-gray-500 font-bold uppercase tracking-widest text-xs">Total Calculado</span>
-                  <span className="text-3xl font-black text-gray-800">R$ {total.toFixed(2)}</span>
+            
+            {mode === 'quick' && (
+              <div className="mt-8 space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Valor Total</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)] font-bold">R$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={total}
+                    onChange={(e) => setTotal(parseFloat(e.target.value) || 0)}
+                    placeholder="0,00"
+                    className="w-full p-4 pl-12 bg-[var(--background)] border border-[var(--border)] rounded-3xl font-black text-2xl outline-none focus:border-blue-500 transition-all text-[var(--foreground)]"
+                  />
                 </div>
               </div>
             )}
           </div>
 
-          <div className="space-y-8">
-            <ImportadorInteligente 
-              onResultReady={handleAiResultReady} 
-              categorias={categorias}
-            />
+          {mode === 'full' && (
+            <div className="card-premium p-8 animate-fade-in">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+                  Itens / Produtos
+                </h2>
+                <button
+                  onClick={handleAddProduto}
+                  className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition font-black text-[10px] uppercase tracking-widest border border-blue-100 dark:border-blue-900/50"
+                >
+                  ➕ Novo Item
+                </button>
+              </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Informações de Origem</h3>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Conta de Origem</label>
-                  <select
-                    value={contaId}
-                    onChange={(e) => setContaId(e.target.value)}
-                    className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-sm"
-                  >
-                    {contas.map(acc => <option key={acc.id} value={acc.id}>{acc.nome}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Responsável</label>
-                  <select
-                    value={usuarioId}
-                    onChange={(e) => setUsuarioId(e.target.value)}
-                    className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-sm"
-                  >
-                    {usuarios.map(usr => <option key={usr.id} value={usr.id}>{usr.nome}</option>)}
-                  </select>
-                </div>
+                {produtos.length === 0 ? (
+                  <div className="py-12 text-center bg-[var(--background)] rounded-[2rem] border-2 border-dashed border-[var(--border)]">
+                    <p className="text-[var(--muted)] font-medium italic">Nenhum item adicionado.</p>
+                  </div>
+                ) : (
+                  produtos.map((produto, index) => (
+                    <div key={index} className="flex flex-col md:flex-row gap-4 p-6 bg-[var(--background)] rounded-3xl border border-[var(--border)] group transition-all hover:border-blue-500/50">
+                      <div className="flex-grow space-y-1">
+                        <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Nome do Item</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Arroz 5kg"
+                          value={produto.nome}
+                          onChange={(e) => handleProdutoChange(index, 'nome', e.target.value)}
+                          className="w-full p-2.5 bg-[var(--card)] border border-[var(--border)] rounded-xl font-bold text-sm outline-none focus:border-blue-500 transition-all text-[var(--foreground)]"
+                        />
+                      </div>
+                      <div className="w-full md:w-24 space-y-1">
+                        <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Qtd</label>
+                        <input
+                          type="number"
+                          value={produto.quantidade}
+                          onChange={(e) => handleProdutoChange(index, 'quantidade', parseFloat(e.target.value) || 0)}
+                          className="w-full p-2.5 bg-[var(--card)] border border-[var(--border)] rounded-xl font-bold text-sm outline-none focus:border-blue-500 transition-all text-center text-[var(--foreground)]"
+                        />
+                      </div>
+                      <div className="w-full md:w-32 space-y-1">
+                        <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Preço Un.</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={produto.preco_unitario}
+                          onChange={(e) => handleProdutoChange(index, 'preco_unitario', parseFloat(e.target.value) || 0)}
+                          className="w-full p-2.5 bg-[var(--card)] border border-[var(--border)] rounded-xl font-bold text-sm outline-none focus:border-blue-500 transition-all text-[var(--foreground)]"
+                        />
+                      </div>
+                      <div className="w-full md:w-32 space-y-1">
+                        <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest ml-1 text-right block pr-1">Total Item</label>
+                        <div className="p-2.5 font-black text-[var(--foreground)] text-right bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/50">
+                          R$ {produto.preco_total.toFixed(2)}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setProdutos(produtos.filter((_, i) => i !== index))}
+                        className="md:mt-6 p-2 text-rose-400 hover:text-rose-600 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-[var(--border)] flex justify-between items-center">
+                <span className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Valor Total Acumulado</span>
+                <span className="text-4xl font-black text-[var(--foreground)] tracking-tighter">R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={isRecorrente}
-                  onChange={(e) => setIsRecorrente(e.target.checked)}
-                  className="w-5 h-5 accent-blue-600 cursor-pointer"
-                />
-                <span className="text-sm font-bold text-gray-700 group-hover:text-blue-600 transition-colors">Recorrência</span>
-              </label>
-
-              {isRecorrente && (
-                <div className="mt-4 pt-4 border-t border-gray-50">
-                  <select
-                    value={frequencia}
-                    onChange={(e) => setFrequencia(e.target.value)}
-                    className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm font-bold"
-                  >
-                    <option value="semanal">Semanal</option>
-                    <option value="mensal">Mensal</option>
-                    <option value="anual">Anual</option>
-                  </select>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
 
-        <div className="flex gap-4">
-          <button
-            onClick={handleSave}
-            className="flex-1 bg-blue-600 text-white px-8 py-5 rounded-2xl hover:bg-blue-700 transition shadow-xl shadow-blue-100 font-black text-xl"
-          >
-            Salvar Saída
-          </button>
-          <button
-            onClick={() => router.push('/transacoes?tipo=saida')}
-            className="px-8 py-5 bg-white text-gray-400 rounded-2xl hover:bg-gray-50 transition border border-gray-200 font-bold"
-          >
-            Cancelar
-          </button>
+        <div className="space-y-8 px-4 md:px-0">
+          <div className="card-premium p-8 bg-gradient-to-br from-indigo-600 to-blue-700 text-white border-none shadow-indigo-500/20">
+             <ImportadorInteligente 
+               onResultReady={handleAiResultReady} 
+               categorias={categorias}
+             />
+          </div>
+
+          <div className="card-premium p-8 space-y-6">
+            <h3 className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest flex items-center gap-2">
+              <span className="w-1 h-3 bg-blue-600 rounded-full"></span>
+              Fluxo de Caixa
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Conta de Origem</label>
+                <select
+                  value={contaId}
+                  onChange={(e) => setContaId(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm outline-none focus:border-blue-500 transition-all cursor-pointer text-[var(--foreground)]"
+                >
+                  {contas.map(acc => <option key={acc.id} value={acc.id}>{acc.nome}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Responsável</label>
+                <select
+                  value={usuarioId}
+                  onChange={(e) => setUsuarioId(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm outline-none focus:border-blue-500 transition-all cursor-pointer text-[var(--foreground)]"
+                >
+                  {usuarios.map(usr => <option key={usr.id} value={usr.id}>{usr.nome}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-premium p-8">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={isRecorrente}
+                onChange={(e) => setIsRecorrente(e.target.checked)}
+                className="w-5 h-5 accent-blue-600 cursor-pointer rounded-lg"
+              />
+              <span className="text-sm font-black text-[var(--foreground)] group-hover:text-blue-600 transition-colors uppercase tracking-widest">Recorrência</span>
+            </label>
+
+            {isRecorrente && (
+              <div className="mt-6 pt-6 border-t border-[var(--border)] animate-fade-in">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1 mb-2 block">Frequência</label>
+                <select
+                  value={frequencia}
+                  onChange={(e) => setFrequencia(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-black text-sm outline-none focus:border-blue-500 transition-all cursor-pointer text-[var(--foreground)]"
+                >
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
+                  <option value="anual">Anual</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleSave}
+              className="btn-primary w-full py-5 text-lg shadow-blue-500/30"
+            >
+              Salvar Lançamento
+            </button>
+            <button
+              onClick={() => router.push('/transacoes?tipo=saida')}
+              className="w-full py-4 text-sm font-black text-[var(--muted)] hover:text-[var(--foreground)] transition-colors uppercase tracking-widest"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
 

@@ -44,84 +44,84 @@ export default function CategoriasPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Categorias</h1>
-        <p className="text-gray-500">Gerencie como você organiza suas transações (Entradas e Saídas).</p>
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
+      <div className="px-4 md:px-0">
+        <h1 className="text-3xl font-black text-[var(--foreground)] tracking-tight">Categorias</h1>
+        <p className="text-[var(--muted)] font-medium">Gerencie como você organiza suas transações (Entradas e Saídas).</p>
       </div>
 
-      <div className="flex gap-2 mb-8 bg-white p-1.5 rounded-2xl border border-gray-200 w-fit">
+      <div className="flex gap-2 bg-[var(--card)] p-1.5 rounded-2xl border border-[var(--border)] w-fit mx-4 md:mx-0">
         <button
           onClick={() => setActiveTab('saida')}
-          className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'saida' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-gray-500 hover:bg-gray-50'}`}
+          className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'saida' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-[var(--muted)] hover:bg-[var(--background)]'}`}
         >
-          Saídas (Saidas)
+          Saídas
         </button>
         <button
           onClick={() => setActiveTab('entrada')}
-          className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'entrada' ? 'bg-green-600 text-white shadow-lg shadow-green-500/30' : 'text-gray-500 hover:bg-gray-50'}`}
+          className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'entrada' ? 'bg-green-600 text-white shadow-lg shadow-green-500/30' : 'text-[var(--muted)] hover:bg-[var(--background)]'}`}
         >
-          Entradas (Entradas)
+          Entradas
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-          <div className="flex gap-3">
+      <div className="bg-[var(--card)] rounded-3xl shadow-sm border border-[var(--border)] overflow-hidden mx-4 md:mx-0">
+        <div className="p-6 border-b border-[var(--border)] bg-[var(--background)]/50">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={novoNome}
               onChange={(e) => setNovoNome(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              placeholder={`Nova categoria de ${activeTab === 'saida' ? 'saida' : 'entrada'}...`}
-              className="flex-grow p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              placeholder={`Nova categoria de ${activeTab === 'saida' ? 'saída' : 'entrada'}...`}
+              className="flex-grow p-3 bg-[var(--background)] border border-[var(--border)] rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-sm text-[var(--foreground)]"
             />
             <button
               onClick={handleAdd}
               disabled={!novoNome}
-              className={`px-6 py-3 rounded-xl font-bold text-white transition-all ${activeTab === 'saida' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'} disabled:opacity-50`}
+              className={`px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs text-white transition-all ${activeTab === 'saida' ? 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20' : 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/20'} disabled:opacity-50`}
             >
               Adicionar
             </button>
           </div>
         </div>
 
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-[var(--border)]">
           {categorias.length === 0 ? (
-            <div className="p-12 text-center text-gray-400">Nenhuma categoria cadastrada.</div>
+            <div className="p-12 text-center text-[var(--muted)] font-medium italic">Nenhuma categoria cadastrada.</div>
           ) : (
             categorias.map((cat) => (
-              <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-gray-50/50 transition-all group">
+              <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-[var(--background)]/50 transition-all group px-6">
                 {editingId === cat.id ? (
-                  <div className="flex-grow flex gap-2 mr-4">
+                  <div className="flex-grow flex gap-2">
                     <input
                       type="text"
                       autoFocus
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(cat.id)}
-                      className="flex-grow p-2 bg-white border border-blue-500 rounded-lg outline-none"
+                      className="flex-grow p-2.5 bg-[var(--background)] border border-blue-500 rounded-xl outline-none text-[var(--foreground)] font-bold text-sm"
                     />
-                    <button onClick={() => handleSaveEdit(cat.id)} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs">Salvar</button>
-                    <button onClick={() => setEditingId(null)} className="px-4 py-2 bg-gray-200 text-gray-600 rounded-lg font-bold text-xs">Cancelar</button>
+                    <button onClick={() => handleSaveEdit(cat.id)} className="px-4 py-2 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px]">Salvar</button>
+                    <button onClick={() => setEditingId(null)} className="px-4 py-2 bg-[var(--background)] text-[var(--muted)] border border-[var(--border)] rounded-xl font-black uppercase tracking-widest text-[10px]">Cancelar</button>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${activeTab === 'saida' ? 'bg-blue-400' : 'bg-green-400'}`}></div>
-                      <span className="text-gray-900 font-medium truncate max-w-[250px]" title={cat.nome}>{cat.nome}</span>
+                    <div className="flex items-center gap-4">
+                      <div className={`w-3 h-3 rounded-full ${activeTab === 'saida' ? 'bg-blue-400 dark:bg-blue-600' : 'bg-green-400 dark:bg-green-600'} shadow-sm`}></div>
+                      <span className="text-[var(--foreground)] font-bold truncate max-w-[250px]" title={cat.nome}>{cat.nome}</span>
                     </div>
                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleStartEdit(cat.id, cat.nome)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"
                         title="Renomear"
                       >
                         ✏️
                       </button>
                       <button
                         onClick={() => handleRemove(cat.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-all"
                         title="Excluir"
                       >
                         🗑️

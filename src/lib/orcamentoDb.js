@@ -98,8 +98,9 @@ export const orcamentoDb = {
 
     const realizado = {};
     res[0].values.forEach(row => {
-      realizado[row[0]] = row[1];
+      realizado[row[0]] = row[2]; // Index 2 é o SUM(valor)
     });
+
 
     return realizado;
   },

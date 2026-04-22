@@ -16,6 +16,26 @@ export async function initDb() {
     // Prevent execution during Server-Side Rendering (SSR)
     if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') return null;
 
+    // Se a variável de ambiente estiver setada, limpa o banco antes de iniciar
+    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_CLEAN_DB === 'true') {
+      console.log('NEXT_PUBLIC_CLEAN_DB is true. Cleaning database...');
+      await new Promise((resolve) => {
+        const req = indexedDB.deleteDatabase('/sql');
+        req.onsuccess = () => {
+          console.log('Database cleaned successfully.');
+          resolve();
+        };
+        req.onerror = () => {
+          console.error('Error cleaning database.');
+          resolve();
+        };
+        req.onblocked = () => {
+          console.warn('Cleaning blocked. Close other tabs.');
+          resolve();
+        };
+      });
+    }
+
     if (process.env.NODE_ENV === 'test') {
       const fs = require('fs');
       const path = require('path');

@@ -24,8 +24,11 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuOpen, handleSwitchUser, pathname }) {
+import { ThemeProvider, useTheme } from "@/providers/ThemeProvider";
+
+function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuOpen, handleSwitchUser, pathname, setIsMobileOpen }) {
   const { runTask, isTaskRunning } = useBackgroundTask();
+  const { theme, toggleTheme } = useTheme();
   
   const handleSync = async () => {
     await runTask(
@@ -38,15 +41,31 @@ function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuO
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 h-16 flex items-center px-8 sticky top-0 z-30">
+    <header className="bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--border)] h-16 flex items-center px-4 md:px-8 sticky top-0 z-50 transition-colors duration-300">
       <div className="flex justify-between items-center w-full">
         <div className="flex items-center gap-4">
-           <h2 className="text-lg font-bold text-gray-800 capitalize">
+           <button 
+             onClick={() => setIsMobileOpen(true)}
+             className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all"
+           >
+             <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+             </svg>
+           </button>
+           <h2 className="text-lg font-bold text-[var(--foreground)] capitalize hidden sm:block">
              {pathname.split('/').filter(x => x).pop() || 'Início'}
            </h2>
         </div>
         
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-2 md:gap-4 items-center">
+          <button
+            onClick={toggleTheme}
+            className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all shadow-sm border border-gray-200 dark:border-gray-700"
+            title={theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro'}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+
           <Link
             href={`/ajuda?tab=${
               pathname.includes('transacoes') || pathname.includes('itens') || pathname.includes('categorias') || pathname.includes('contas') || pathname.includes('recorrencias') || pathname.includes('tags')
@@ -57,60 +76,60 @@ function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuO
                     ? 'seguranca'
                     : 'inicio'
             }`}
-            className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all shadow-sm border border-blue-100 flex items-center gap-2 px-3"
+            className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all shadow-sm border border-blue-100 dark:border-blue-900/50 flex items-center gap-2 px-3"
             title="Ajuda desta página"
           >
-            <span className="text-sm font-bold">Ajuda</span>
-            <span className="text-lg">❓</span>
+            <span className="text-xs font-bold hidden sm:inline">Ajuda</span>
+            <span className="text-base sm:text-lg">❓</span>
           </Link>
 
           <button
             onClick={handleSync}
             disabled={isTaskRunning('google-drive-sync')}
-            className={`p-2 rounded-xl transition-all flex items-center justify-center ${isTaskRunning('google-drive-sync') ? 'bg-green-100 text-green-600 animate-pulse' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} shadow-sm`}
+            className={`p-2 rounded-xl transition-all flex items-center justify-center ${isTaskRunning('google-drive-sync') ? 'bg-green-100 text-green-600 animate-pulse' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'} shadow-sm`}
             title="Sincronizar com Google Drive"
           >
             <svg className={`w-5 h-5 ${isTaskRunning('google-drive-sync') ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
 
           <div className="relative">
             <button
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-900 px-3 py-1.5 rounded-xl transition-all border border-gray-200"
+              className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 md:px-3 py-1.5 rounded-xl transition-all border border-gray-200 dark:border-gray-700"
             >
               <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center text-[10px] text-white font-bold">
                 {activeUsuario?.nome?.charAt(0) || 'U'}
               </div>
-              <span className="hidden sm:inline text-xs font-bold">{activeUsuario?.nome || 'Usuário'}</span>
+              <span className="hidden lg:inline text-xs font-bold">{activeUsuario?.nome || 'Usuário'}</span>
               <svg className={`w-3 h-3 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 py-2">
-                <div className="px-4 py-2 border-b border-gray-100 mb-2">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 z-50 py-2">
+                <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 mb-2">
                   <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Trocar Usuário</p>
                 </div>
                 {usuarios.map(user => (
                   <button
                     key={user.id}
                     onClick={() => handleSwitchUser(user)}
-                    className={`w-full text-left px-4 py-2 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors ${activeUsuario?.id === user.id ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-gray-700'}`}
+                    className={`w-full text-left px-4 py-2 text-sm flex items-center gap-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors ${activeUsuario?.id === user.id ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-50/50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300'}`}
                   >
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] ${activeUsuario?.id === user.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] ${activeUsuario?.id === user.id ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
                       {user.nome.charAt(0)}
                     </div>
                     {user.nome}
                   </button>
                 ))}
-                <div className="border-t border-gray-100 mt-2 pt-2">
-                  <Link href="/usuarios" onClick={() => setIsUserMenuOpen(false)} className="px-4 py-2 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-2 font-bold">
+                <div className="border-t border-gray-100 dark:border-gray-800 mt-2 pt-2">
+                  <Link href="/usuarios" onClick={() => setIsUserMenuOpen(false)} className="px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-2 font-bold">
                     <span>👥</span> Gerenciar Equipe
                   </Link>
-                  <Link href="/configuracoes" onClick={() => setIsUserMenuOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2 font-medium">
+                  <Link href="/configuracoes" onClick={() => setIsUserMenuOpen(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 flex items-center gap-2 font-medium">
                     <span>⚙️</span> Configurações
                   </Link>
                 </div>
@@ -128,6 +147,7 @@ export default function RootLayout({ children }) {
   const [usuarios, setUsuarios] = useState([]);
   const [activeUsuario, setActiveUsuarioState] = useState(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -197,31 +217,39 @@ export default function RootLayout({ children }) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Meu Orçamento AI</title>
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 text-gray-900 min-h-screen flex`}>
-        <NotificationProvider>
-          <BackgroundTaskProvider>
-            {showSidebar && (
-              <Sidebar activeEntidade={activeEntidade} handleSwitchEntidade={handleSwitchEntidade} />
-            )}
-            
-            <div className="flex-grow flex flex-col min-w-0">
-              {!isPublicPage && (
-                <HeaderContent 
-                  activeUsuario={activeUsuario}
-                  usuarios={usuarios}
-                  isUserMenuOpen={isUserMenuOpen}
-                  setIsUserMenuOpen={setIsUserMenuOpen}
-                  handleSwitchUser={handleSwitchUser}
-                  pathname={pathname}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen flex`}>
+        <ThemeProvider>
+          <NotificationProvider>
+            <BackgroundTaskProvider>
+              {showSidebar && (
+                <Sidebar 
+                  activeEntidade={activeEntidade} 
+                  handleSwitchEntidade={handleSwitchEntidade} 
+                  isMobileOpen={isMobileOpen}
+                  setIsMobileOpen={setIsMobileOpen}
                 />
               )}
               
-              <main className={`${isPublicPage ? '' : 'p-8'} flex-grow overflow-auto`}>
-                {children}
-              </main>
-            </div>
-          </BackgroundTaskProvider>
-        </NotificationProvider>
+              <div className="flex-grow flex flex-col min-w-0">
+                {!isPublicPage && (
+                  <HeaderContent 
+                    activeUsuario={activeUsuario}
+                    usuarios={usuarios}
+                    isUserMenuOpen={isUserMenuOpen}
+                    setIsUserMenuOpen={setIsUserMenuOpen}
+                    handleSwitchUser={handleSwitchUser}
+                    pathname={pathname}
+                    setIsMobileOpen={setIsMobileOpen}
+                  />
+                )}
+                
+                <main className={`${isPublicPage ? '' : 'p-4 md:p-8'} flex-grow overflow-auto`}>
+                  {children}
+                </main>
+              </div>
+            </BackgroundTaskProvider>
+          </NotificationProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

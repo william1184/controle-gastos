@@ -175,216 +175,253 @@ export default function Configuracoes() {
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 text-blue-600">Configurações</h1>
-
-      {/* 13.1 Geral */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-blue-600">
-        <h2 className="text-xl font-semibold mb-4">13.1 Geral</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome da entidade</label>
-            <input
-              type="text"
-              value={entidadeNome}
-              onChange={(e) => setEntidadeNome(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <select
-              value={entidadeTipo}
-              onChange={(e) => setEntidadeTipo(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="Pessoal">Pessoal</option>
-              <option value="Empresarial">Empresarial</option>
-            </select>
-          </div>
-        </div>
-        <div className="mt-4">
-          <Link href="/usuarios" className="inline-flex items-center gap-2 text-blue-600 hover:underline text-sm font-medium">
-            <span>👥</span> Gerenciar Usuários
-          </Link>
+    <div className="p-6 max-w-5xl mx-auto space-y-8 animate-fade-in-up pb-12">
+      <div className="flex justify-between items-center px-4 md:px-0">
+        <div>
+          <h1 className="text-3xl font-black text-[var(--foreground)] tracking-tight">Configurações</h1>
+          <p className="text-[var(--muted)] font-medium">Personalize sua experiência e gerencie integrações.</p>
         </div>
       </div>
 
-      {/* 13.2 Preferências */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-purple-600">
-        <h2 className="text-xl font-semibold mb-4">13.2 Preferências</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Moeda</label>
-            <input
-              type="text"
-              value={moeda}
-              onChange={(e) => setMoeda(e.target.value)}
-              placeholder="Ex: R$, US$"
-              className="w-full p-2 border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Formato de data</label>
-            <select
-              value={formatoData}
-              onChange={(e) => setFormatoData(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
-            >
-              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* 13.3 Labels (avançado) */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-orange-500">
-        <h2 className="text-xl font-semibold mb-4">13.3 Labels (avançado)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Termo para Saida</label>
-            <input
-              type="text"
-              value={labels.saida}
-              onChange={(e) => setLabels({ ...labels, saida: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-orange-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Termo para Entrada</label>
-            <input
-              type="text"
-              value={labels.entrada}
-              onChange={(e) => setLabels({ ...labels, entrada: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-orange-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Termo para Conta</label>
-            <input
-              type="text"
-              value={labels.conta}
-              onChange={(e) => setLabels({ ...labels, conta: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-orange-500"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl">
-        <h2 className="text-xl font-semibold mb-4">Chave de API Gemini</h2>
-        <input
-          type="password"
-          value={geminiApiKey}
-          onChange={(e) => setGeminiApiKey(e.target.value)}
-          placeholder="Insira sua Google Gemini API Key customizada"
-          className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
-        />
-        <p className="text-sm text-gray-500 mt-2">Usada para categorização automática e insights com IA.</p>
-      </div>
-
-      {/* Card: Categorias (Link) */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-indigo-600">
-        <h2 className="text-xl font-semibold mb-2">Categorias</h2>
-        <p className="text-gray-600 mb-4 text-sm">Gerencie suas categorias de saidas e entradas para organizar melhor suas transações.</p>
-        <Link href="/categorias" className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition font-bold shadow-lg shadow-indigo-500/20">
-          <span>🗂️</span> Gerenciar Categorias
-        </Link>
-      </div>
-
-      {/* 13.4 Integrações */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-green-600">
-        <h2 className="text-xl font-semibold mb-4">13.4 Integrações</h2>
-
-        <div className="mb-6">
-          <h3 className="font-medium text-green-700 mb-2 flex items-center gap-2">
-            <span>☁️</span> Google Drive
-          </h3>
-          <div className="flex items-center gap-2 mb-4">
-            <input
-              type="checkbox"
-              id="syncEnabled"
-              checked={googleDriveSyncEnabled}
-              onChange={(e) => setGoogleDriveSyncEnabled(e.target.checked)}
-              className="w-4 h-4 text-green-600"
-            />
-            <label htmlFor="syncEnabled" className="text-sm font-medium text-gray-700">Habilitar Sincronismo Automático</label>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Google Client ID</label>
-              <input
-                type="text"
-                value={googleDriveClientId}
-                onChange={(e) => setGoogleDriveClientId(e.target.value)}
-                placeholder="Ex: 123...apps.googleusercontent.com"
-                className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500"
-              />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-4 md:px-0">
+        <div className="space-y-8">
+          {/* 13.1 Geral */}
+          <div className="card-premium p-8 border-l-4 border-blue-600">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+              13.1 Geral
+            </h2>
+            <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Nome da entidade</label>
+                <input
+                  type="text"
+                  value={entidadeNome}
+                  onChange={(e) => setEntidadeNome(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Tipo</label>
+                <select
+                  value={entidadeTipo}
+                  onChange={(e) => setEntidadeTipo(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer"
+                >
+                  <option value="Pessoal">Pessoal</option>
+                  <option value="Empresarial">Empresarial</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Google API Key</label>
-              <input
-                type="password"
-                value={googleDriveApiKey}
-                onChange={(e) => setGoogleDriveApiKey(e.target.value)}
-                placeholder="Insira sua API Key do Google Cloud"
-                className="w-full p-2 border border-gray-300 rounded focus:ring-green-500 focus:border-green-500"
-              />
+            <div className="mt-8 pt-6 border-t border-[var(--border)]">
+              <Link href="/usuarios" className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">👥</span>
+                  <span className="text-sm font-black text-[var(--foreground)] group-hover:text-blue-600 transition-colors uppercase tracking-widest">Gerenciar Usuários</span>
+                </div>
+                <span className="text-blue-600 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">→</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* 13.2 Preferências */}
+          <div className="card-premium p-8 border-l-4 border-purple-600">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-purple-600 rounded-full"></span>
+              13.2 Preferências
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Moeda</label>
+                <input
+                  type="text"
+                  value={moeda}
+                  onChange={(e) => setMoeda(e.target.value)}
+                  placeholder="Ex: R$, US$"
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Formato de data</label>
+                <select
+                  value={formatoData}
+                  onChange={(e) => setFormatoData(e.target.value)}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-purple-500 transition-all cursor-pointer"
+                >
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* 13.3 Labels */}
+          <div className="card-premium p-8 border-l-4 border-orange-500">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-orange-600 rounded-full"></span>
+              13.3 Labels (Avançado)
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Saída</label>
+                <input
+                  type="text"
+                  value={labels.saida}
+                  onChange={(e) => setLabels({ ...labels, saida: e.target.value })}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Entrada</label>
+                <input
+                  type="text"
+                  value={labels.entrada}
+                  onChange={(e) => setLabels({ ...labels, entrada: e.target.value })}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Conta</label>
+                <input
+                  type="text"
+                  value={labels.conta}
+                  onChange={(e) => setLabels({ ...labels, conta: e.target.value })}
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="pt-4 border-t border-gray-100">
-          <h3 className="font-medium text-blue-700 mb-2 flex items-center gap-2">
-            <span>🟦</span> OneDrive (Microsoft)
-          </h3>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Client ID / Application ID</label>
-          <input
-            type="text"
-            value={oneDriveClientId}
-            onChange={(e) => setOneDriveClientId(e.target.value)}
-            placeholder="Em breve..."
-            className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500"
-            disabled
-          />
-          <p className="text-xs text-gray-500 mt-1 italic">Integração com OneDrive está em desenvolvimento.</p>
-        </div>
-      </div>
+        <div className="space-y-8">
+          {/* Card: Categorias Link */}
+          <div className="card-premium p-8 border-l-4 border-indigo-600">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-indigo-600 rounded-full"></span>
+              Categorias
+            </h2>
+            <p className="text-[var(--muted)] mb-8 font-medium">Gerencie suas categorias de forma detalhada em uma tela dedicada.</p>
+            <Link href="/categorias" className="btn-primary w-full py-4 text-center block bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20">
+              Gerenciar Categorias 🗂️
+            </Link>
+          </div>
 
-      {/* 13.5 Backup & Sync */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6 max-w-3xl border-l-4 border-yellow-500">
-        <h2 className="text-xl font-semibold mb-4">13.5 Backup & Sync</h2>
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <button
-            onClick={handleManualSync}
-            className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition font-bold shadow-md w-full md:w-auto"
-          >
-            Sincronização Manual
-          </button>
-          <div className="text-sm">
-            <span className="font-medium text-gray-700">Status: </span>
-            <span className={`font-bold ${syncStatus.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
-              {syncStatus}
-            </span>
+          {/* Card: Chave API Gemini */}
+          <div className="card-premium p-8 border-l-4 border-blue-400">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-blue-400 rounded-full"></span>
+              IA & Gemini
+            </h2>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Google Gemini API Key</label>
+                <input
+                  type="password"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  placeholder="Insira sua API Key..."
+                  className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                />
+              </div>
+              <p className="text-[10px] font-medium text-[var(--muted)] leading-relaxed italic">Usada para categorização automática e insights inteligentes com IA.</p>
+            </div>
+          </div>
+
+          {/* 13.4 Integrações */}
+          <div className="card-premium p-8 border-l-4 border-emerald-600">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-emerald-600 rounded-full"></span>
+              13.4 Integrações
+            </h2>
+
+            <div className="space-y-8">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-black text-[var(--foreground)] uppercase tracking-widest text-[11px] flex items-center gap-2">
+                    <span className="text-lg">☁️</span> Google Drive
+                  </h3>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={googleDriveSyncEnabled}
+                      onChange={(e) => setGoogleDriveSyncEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-[var(--background)] border border-[var(--border)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-emerald-600 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600/10"></div>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Google Client ID</label>
+                    <input
+                      type="text"
+                      value={googleDriveClientId}
+                      onChange={(e) => setGoogleDriveClientId(e.target.value)}
+                      placeholder="Client ID..."
+                      className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-[var(--muted)] uppercase tracking-widest ml-1">Google API Key</label>
+                    <input
+                      type="password"
+                      value={googleDriveApiKey}
+                      onChange={(e) => setGoogleDriveApiKey(e.target.value)}
+                      placeholder="API Key..."
+                      className="w-full p-3 bg-[var(--background)] border border-[var(--border)] rounded-2xl font-bold text-sm text-[var(--foreground)] outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-[var(--border)] opacity-50 grayscale">
+                <h3 className="font-black text-[var(--foreground)] uppercase tracking-widest text-[11px] flex items-center gap-2 mb-4">
+                  <span className="text-lg">🟦</span> OneDrive
+                </h3>
+                <p className="text-[10px] text-[var(--muted)] font-black uppercase tracking-widest">Em breve...</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 13.5 Backup & Sync */}
+          <div className="card-premium p-8 border-l-4 border-yellow-500">
+            <h2 className="text-sm font-black text-[var(--foreground)] uppercase tracking-widest mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-yellow-500 rounded-full"></span>
+              13.5 Backup & Sincronia
+            </h2>
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={handleManualSync}
+                className="w-full py-4 bg-yellow-500 hover:bg-yellow-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all shadow-lg shadow-yellow-500/20"
+              >
+                Sincronização Manual 🔄
+              </button>
+              <div className="p-4 bg-[var(--background)] rounded-2xl border border-[var(--border)] flex items-center justify-between">
+                <span className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">Status Atual</span>
+                <span className={`text-[11px] font-black uppercase tracking-widest ${syncStatus.includes('Erro') ? 'text-red-500' : 'text-emerald-500'}`}>
+                  {syncStatus}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-4">
-          A sincronização manual força o upload imediato do seu banco de dados para o provedor configurado.
-        </p>
       </div>
 
-      <div className="flex flex-wrap gap-4 max-w-3xl mb-8">
-        <button onClick={handleSave} className="bg-blue-600 text-white px-8 py-3 rounded-xl hover:bg-blue-700 transition font-bold shadow-lg">Salvar Configurações</button>
-        <button onClick={handleExport} className="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl hover:bg-gray-200 transition font-medium border border-gray-300">Exportar JSON</button>
-        <button onClick={() => fileInputRef.current.click()} className="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl hover:bg-gray-200 transition font-medium border border-gray-300">Importar JSON</button>
-        <input type="file" accept=".json" onChange={handleImport} ref={fileInputRef} className="hidden" />
-      </div>
-
-      <div className="max-w-3xl text-center text-gray-400 text-sm mt-12 pb-8">
-        <p>Meu Mercado AI - Versão {APP_VERSION}</p>
+      <div className="px-4 md:px-0 pt-8 border-t border-[var(--border)]">
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex flex-wrap gap-3">
+             <button onClick={handleSave} className="btn-primary px-10 py-4 shadow-blue-500/30">Salvar Tudo</button>
+             <button onClick={handleExport} className="px-6 py-4 bg-[var(--card)] text-[var(--muted)] font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-[var(--background)] transition border border-[var(--border)]">Exportar Config</button>
+             <button onClick={() => fileInputRef.current.click()} className="px-6 py-4 bg-[var(--card)] text-[var(--muted)] font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-[var(--background)] transition border border-[var(--border)]">Importar Config</button>
+             <input type="file" accept=".json" onChange={handleImport} ref={fileInputRef} className="hidden" />
+          </div>
+          
+          <div className="text-[10px] font-black text-[var(--muted)] uppercase tracking-widest">
+            Meu Mercado AI - v{APP_VERSION}
+          </div>
+        </div>
       </div>
     </div>
   );

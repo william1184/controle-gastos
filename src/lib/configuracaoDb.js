@@ -1,4 +1,7 @@
 import { getDb, initDb } from './db';
+import { encrypt, decrypt } from './cryptoUtils';
+
+const CHAVES_SENSIVEIS = ['geminiApiKey', 'googleDriveClientId', 'googleDriveApiKey'];
 
 export async function getConfig(key, userId = null) {
   await initDb();
@@ -16,9 +19,18 @@ export async function getConfig(key, userId = null) {
   if (!res[0] || res[0].values.length === 0) return null;
   
   try {
-    return JSON.parse(res[0].values[0][0]);
+    let valor = JSON.parse(res[0].values[0][0]);
+    if (CHAVES_SENSIVEIS.includes(key) && typeof valor === 'string') {
+      valor = decrypt(valor);
+    }
+    return valor;
+
   } catch (e) {
-    return res[0].values[0][0];
+    let valor = res[0].values[0][0];
+    if (CHAVES_SENSIVEIS.includes(key) && typeof valor === 'string') {
+      valor = decrypt(valor);
+    }
+    return valor;
   }
 }
 
@@ -26,7 +38,13 @@ export async function setConfig(key, value, userId = null) {
   await initDb();
   const db = getDb();
   const now = new Date().toISOString();
-  const jsonValue = JSON.stringify(value);
+  
+  let valorParaSalvar = value;
+  if (CHAVES_SENSIVEIS.includes(key) && typeof value === 'string') {
+    valorParaSalvar = encrypt(value);
+  }
+  
+  const jsonValue = JSON.stringify(valorParaSalvar);
   
   const existing = await getConfig(key, userId || null);
   
@@ -39,6 +57,8 @@ export async function setConfig(key, value, userId = null) {
   } else {
     db.run("INSERT INTO configuracao (chave, valor, usuario_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)", [key, jsonValue, userId || null, now, now]);
   }
+
+
 }
 
 /**

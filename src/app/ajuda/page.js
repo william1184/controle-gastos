@@ -92,65 +92,68 @@ function AjudaContent() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      
-      <main className="flex-1 p-8 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
-          <header className="mb-10">
-            <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Central de Ajuda</h1>
-            <p className="text-gray-500">Tudo o que você precisa saber para dominar suas finanças com o Meu Orçamento AI.</p>
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
+      <header className="mb-10 px-4 md:px-0">
+            <h1 className="text-3xl font-black text-[var(--foreground)] tracking-tight mb-2">Central de Ajuda</h1>
+            <p className="text-[var(--muted)] font-medium">Tudo o que você precisa saber para dominar suas finanças com o Meu Orçamento AI.</p>
           </header>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <aside className="md:col-span-1 space-y-2">
+            <aside className="md:col-span-1 space-y-3">
               {sections.map((section) => (
                 <button
                   key={section.id}
                   onClick={() => setActiveTab(section.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all text-left border ${
                     activeTab === section.id
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 font-bold'
-                      : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-100'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 border-blue-600 font-bold'
+                      : 'bg-[var(--card)] text-[var(--muted)] hover:bg-[var(--background)] border-[var(--border)]'
                   }`}
                 >
                   <span className="text-xl">{section.icon}</span>
-                  <span className="text-sm">{section.title}</span>
+                  <span className="text-sm font-bold uppercase tracking-widest text-[10px]">{section.title}</span>
                 </button>
               ))}
             </aside>
 
             <section className="md:col-span-3">
-              <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm min-h-[400px]">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="text-3xl">{sections.find(s => s.id === activeTab)?.icon}</span>
-                  <h2 className="text-2xl font-bold text-gray-900">
+              <div className="bg-[var(--card)] rounded-[2rem] p-8 border border-[var(--border)] shadow-sm min-h-[400px]">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 bg-blue-600/10 rounded-2xl flex items-center justify-center text-2xl border border-blue-600/20">
+                    {sections.find(s => s.id === activeTab)?.icon}
+                  </div>
+                  <h2 className="text-2xl font-black text-[var(--foreground)] tracking-tight">
                     {sections.find(s => s.id === activeTab)?.title}
                   </h2>
                 </div>
                 
-                <div className="prose prose-blue max-w-none">
+                <div className="prose prose-blue dark:prose-invert max-w-none text-[var(--foreground)] font-medium">
                   {sections.find(s => s.id === activeTab)?.content}
                 </div>
               </div>
 
-              <div className="mt-12 bg-gray-900 text-white rounded-2xl p-8 shadow-xl">
-                <h3 className="text-xl font-bold mb-6">Perguntas Frequentes</h3>
+              <div className="mt-12 bg-gray-900 dark:bg-blue-900/10 text-white rounded-[2rem] p-8 border border-gray-800 dark:border-blue-900/20 shadow-xl">
+                <h3 className="text-xl font-black mb-8 uppercase tracking-widest text-xs flex items-center gap-2">
+                  <span className="w-1.5 h-4 bg-blue-500 rounded-full"></span>
+                  Perguntas Frequentes
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h4 className="font-bold text-blue-400 mb-2">Meus dados estão seguros?</h4>
-                    <p className="text-gray-400 text-sm">Sim. Os dados são salvos localmente e só saem do seu dispositivo se você ativar a sincronização com o Google Drive.</p>
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-blue-400 flex items-center gap-2">
+                      <span className="text-xs">✦</span> Meus dados estão seguros?
+                    </h4>
+                    <p className="text-gray-400 text-sm font-medium leading-relaxed">Sim. Os dados são salvos localmente e só saem do seu dispositivo se você ativar a sincronização com o Google Drive.</p>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-blue-400 mb-2">Posso usar offline?</h4>
-                    <p className="text-gray-400 text-sm">Sim. Todas as funcionalidades de registro e consulta funcionam sem internet.</p>
+                  <div className="space-y-2">
+                    <h4 className="font-bold text-blue-400 flex items-center gap-2">
+                      <span className="text-xs">✦</span> Posso usar offline?
+                    </h4>
+                    <p className="text-gray-400 text-sm font-medium leading-relaxed">Sim. Todas as funcionalidades de registro e consulta funcionam sem internet.</p>
                   </div>
                 </div>
               </div>
             </section>
           </div>
-        </div>
-      </main>
     </div>
   );
 }

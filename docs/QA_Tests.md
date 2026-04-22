@@ -26,8 +26,10 @@
 
 | ID | Caso de Teste | Pré-condição | Passos | Resultado Esperado |
 |:---|:---|:---|:---|:---|
-| CT07 | Responsividade Mobile | Nenhuma | 1. Redimensionar janela para largura de 375px | Menu lateral deve colapsar e tabelas devem permitir scroll horizontal ou virar cards |
-| CT08 | Troca de Entidade | Múltiplas entidades | 1. Mudar contexto de 'Pessoal' para 'Empresa' | Dashboard deve atualizar todos os valores para refletir apenas os dados da 'Empresa' |
+| CT07 | Responsividade Mobile (Sidebar) | Nenhuma | 1. Redimensionar para mobile<br>2. Clicar no menu hamburger | Sidebar deve aparecer como um drawer com overlay escuro |
+| CT08 | Visualização de Transações (Mobile) | Transações existentes | 1. Acessar 'Transações' no mobile | A listagem deve ser exibida em Cards (Digital Receipts) em vez de tabela |
+| CT11 | Estética Premium (Glassmorphism) | Nenhuma | 1. Verificar Dashboard | Cards devem ter efeito de blur no fundo e sombras suaves (card-premium) |
+| CT12 | Animações de Entrada | Nenhuma | 1. Navegar entre páginas | O conteúdo deve subir levemente com fade-in (animate-fade-in-up) |
 
 ### 5. Testes de Documentação
 | ID | Caso de Teste | Pré-condição | Passos | Resultado Esperado |

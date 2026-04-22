@@ -30,6 +30,9 @@ Um gerenciador financeiro local-first, com sincronização em nuvem e inteligên
 - [x] Integração com Gemini para categorização.
 - [x] Suporte a múltiplas entidades e usuários.
 - [x] Documentação do Usuário e Central de Ajuda Integrada.
+- [x] Modernização Premium UX/UI (Design Tokens, Glassmorphism, Responsividade Total).
+- [x] Estabilização de Testes E2E (Playwright) com reset de banco e mocks de IA.
+- [x] Padronização de Configurações (Migração de storeDb para configuracaoDb com criptografia).
 
 
 ### 6. Roadmap de Design
@@ -37,3 +40,8 @@ Um gerenciador financeiro local-first, com sincronização em nuvem e inteligên
 - [ ] Exportação de Relatórios em PDF.
 - [ ] Reconhecimento de Notas Fiscais via OCR.
 - [ ] App Mobile Progressivo (PWA).
+
+### 7. Segurança de Dados
+- **Armazenamento Local**: Protegido pela política de mesma origem (Same-Origin Policy). Dados sensíveis devem ser criptografados.
+- **Sincronização**: Utiliza OAuth2 para autorização e HTTPS para transporte.
+- **Privacidade**: Todos os dados financeiros residem no dispositivo do usuário e em sua conta pessoal do Google Drive.

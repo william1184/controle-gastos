@@ -19,6 +19,8 @@ export function BackgroundTaskProvider({ children }) {
     }
   };
 
+
+
   const dismissNotification = (id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
