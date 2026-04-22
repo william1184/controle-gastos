@@ -33,9 +33,9 @@ describe('Sidebar Component', () => {
     usePathname.mockReturnValue('/transacoes');
     render(<Sidebar />);
     
-    const transacoesLink = screen.getByRole('link', { name: /💸 Transações/i });
-    expect(transacoesLink.className).toContain('bg-blue-50');
-    expect(transacoesLink.className).toContain('text-blue-600');
+    const transacoesButton = screen.getByRole('button', { name: /💸 Transações/i });
+    expect(transacoesButton.className).toContain('bg-blue-50');
+    expect(transacoesButton.className).toContain('text-blue-600');
   });
 
   it('deve exibir informações da entidade ativa quando fornecida', () => {
