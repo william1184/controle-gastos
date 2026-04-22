@@ -11,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { APP_VERSION } from "@/lib/constants";
 import "./globals.css";
+import { NotificationProvider } from "@/lib/NotificationContext";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -102,8 +103,6 @@ function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuO
     </header>
   );
 }
-
-import { NotificationProvider } from "@/lib/NotificationContext";
 
 export default function RootLayout({ children }) {
   const [activeEntidade, setActiveEntidadeState] = useState(null);

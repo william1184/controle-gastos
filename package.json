@@ -2,17 +2,21 @@
   "name": "meu-orcamento-ai",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest"
+    "test": "jest",
+    "electron": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "next build && electron-builder"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@jlongster/sql.js": "^1.6.7",
     "absurd-sql": "^0.0.54",
+    "electron-serve": "1.1.0",
     "formidable": "^3.5.2",
     "next": "15.0.7",
     "react": "^19.0.0",
@@ -23,11 +27,31 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "concurrently": "^9.2.1",
+    "electron": "^41.2.1",
+    "electron-builder": "^26.8.1",
     "eslint": "^8",
     "eslint-config-next": "15.0.4",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "postcss": "^8",
-    "tailwindcss": "^3.4.1"
+    "tailwindcss": "^3.4.1",
+    "wait-on": "^9.0.5"
+  },
+  "build": {
+    "appId": "com.william1184.meuorcamentoai",
+    "productName": "Meu Orçamento AI",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "electron/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
   }
 }

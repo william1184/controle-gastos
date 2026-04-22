@@ -1,14 +1,15 @@
 "use client";
 import { getSaidaById } from '@/lib/saidasDb';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function ConsultaSaida() {
+function ConsultaSaidaContent() {
   const [produtos, setProdutos] = useState([]);
   const [data, setData] = useState('');
-  const [apelido, setApelido] = useState(''); // Estado para o apelido
+  const [apelido, setApelido] = useState('');
   const [total, setTotal] = useState(0);
-  const { id } = useParams();
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
   const router = useRouter();
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function ConsultaSaida() {
   }, [id]);
 
   const handleBack = () => {
-    router.push('/transacoes?tipo=saida'); // Redireciona para a página unificada
+    router.push('/transacoes?tipo=saida');
   };
 
   return (
@@ -77,5 +78,13 @@ export default function ConsultaSaida() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function ConsultaSaida() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <ConsultaSaidaContent />
+    </Suspense>
   );
 }

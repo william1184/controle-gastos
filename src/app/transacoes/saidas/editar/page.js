@@ -5,10 +5,10 @@ import { getActiveEntidade } from '@/lib/entidadeDb';
 import { getRecorrenciaById } from '@/lib/recorrenciaDb';
 import { getSaidaById, updateSaida } from '@/lib/saidasDb';
 import { getUsuarios } from '@/lib/usuarioDb';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 
-export default function EditarSaida() {
+function EditarSaidaContent() {
   const [produtos, setProdutos] = useState([]);
   const [data, setData] = useState('');
   const [apelido, setApelido] = useState('');
@@ -21,12 +21,12 @@ export default function EditarSaida() {
   const [usuarios, setUsuarios] = useState([]);
   const [total, setTotal] = useState(0);
 
-  // Recorrência
   const [isRecorrente, setIsRecorrente] = useState(false);
   const [frequencia, setFrequencia] = useState('mensal');
 
   const router = useRouter();
-  const { id } = useParams();
+  const searchParams = useSearchParams();
+  const id = searchParams.get('id');
 
   useEffect(() => {
     const loadData = async () => {
@@ -293,5 +293,13 @@ export default function EditarSaida() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EditarSaida() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <EditarSaidaContent />
+    </Suspense>
   );
 }

@@ -10,11 +10,11 @@ import { normalizeTransactions, sortTransactionsByDate } from '@/lib/transaction
 import { useBackgroundTask } from '@/providers/BackgroundTaskProvider';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { getTransactions } from '@/lib/transactionDb';
 import Pagination from '@/components/Pagination';
 
-export default function TransacoesPage() {
+function TransacoesPageContent() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tipo') === 'entrada' ? 'entradas' : (searchParams.get('tipo') === 'saida' ? 'saidas' : 'todas');
 
@@ -51,11 +51,8 @@ export default function TransacoesPage() {
       page,
       pageSize: transacoesData.pageSize,
       tipo: activeTab === 'entradas' ? 'entrada' : (activeTab === 'saidas' ? 'saida' : ''),
-      // Map filters.categoria (name) to categoryId if needed, but getTransactions currently uses categoryId
-      // I'll update getTransactions to handle categoria (name) as well for compatibility
     };
 
-    // Since filters.categoria is name, I'll find ID
     if (filters.categoria) {
       const cat = [...catsG, ...catsR].find(c => c.nome === filters.categoria);
       if (cat) queryFilters.categoriaId = cat.id;
@@ -226,7 +223,6 @@ export default function TransacoesPage() {
         </div>
       </div>
 
-      {/* Tabs and AI Buttons */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div className="flex gap-2 bg-white p-1.5 rounded-2xl border border-gray-200 w-fit">
           {['todas', 'entradas', 'saidas', 'importar'].map((tab) => (
@@ -269,7 +265,6 @@ export default function TransacoesPage() {
         <ImportadorCSV onImportComplete={() => setActiveTab('todas')} />
       ) : (
         <>
-          {/* Filtros */}
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Categoria</label>
@@ -314,7 +309,6 @@ export default function TransacoesPage() {
             </div>
           </div>
 
-          {/* Listagem */}
           <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="w-full text-left">
               <thead>
@@ -369,7 +363,7 @@ export default function TransacoesPage() {
                       <td className="px-6 py-4">
                         <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Link
-                            href={t.tipo === 'saida' ? `/transacoes/saidas/editar/${t.id}` : `/transacoes/entradas/editar?id=${t.id}`}
+                            href={t.tipo === 'saida' ? `/transacoes/saidas/editar?id=${t.id}` : `/transacoes/entradas/editar?id=${t.id}`}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                           >
                             ✏️
@@ -398,7 +392,6 @@ export default function TransacoesPage() {
         </>
       )}
 
-      {/* Modal de Sugestões da IA */}
       {showSuggestionsModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
@@ -492,5 +485,13 @@ export default function TransacoesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TransacoesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Carregando transações...</div>}>
+      <TransacoesPageContent />
+    </Suspense>
   );
 }
