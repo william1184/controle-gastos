@@ -29,6 +29,12 @@
 | CT07 | Responsividade Mobile | Nenhuma | 1. Redimensionar janela para largura de 375px | Menu lateral deve colapsar e tabelas devem permitir scroll horizontal ou virar cards |
 | CT08 | Troca de Entidade | Múltiplas entidades | 1. Mudar contexto de 'Pessoal' para 'Empresa' | Dashboard deve atualizar todos os valores para refletir apenas os dados da 'Empresa' |
 
+### 5. Testes de Documentação
+| ID | Caso de Teste | Pré-condição | Passos | Resultado Esperado |
+|:---|:---|:---|:---|:---|
+| CT09 | Acessar Central de Ajuda | Nenhuma | 1. Clicar em 'Ajuda' no menu lateral | Página de ajuda carregada com todas as seções visíveis |
+| CT10 | Navegar entre Seções da Ajuda | Página de ajuda aberta | 1. Clicar nos botões de navegação lateral (ex: 'Transações') | O conteúdo central deve atualizar para refletir a seção selecionada |
+
 ---
 
 ### Observações do QA:

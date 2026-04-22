@@ -126,6 +126,22 @@ export default function Sidebar({ activeEntidade, handleSwitchEntidade }) {
         })}
       </nav>
 
+      <div className="px-4 py-2 border-t border-gray-100">
+        <Link
+          href="/ajuda"
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+            pathname === '/ajuda' 
+              ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-100' 
+              : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+          }`}
+        >
+          <span className={`text-xl transition-transform group-hover:scale-110 ${pathname === '/ajuda' ? 'grayscale-0' : 'grayscale opacity-70'}`}>
+            ❓
+          </span>
+          <span className="text-sm">Central de Ajuda</span>
+        </Link>
+      </div>
+
       {activeEntidade && (
         <div className="p-4 border-t border-gray-100 bg-gray-50/50">
           <div className="mb-4 px-4">

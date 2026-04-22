@@ -176,6 +176,37 @@ export const orcamentoDb = {
     };
   },
 
+  /**
+   * Copia as metas do mês anterior para o mês atual, se o mês atual não tiver metas definidas.
+   */
+  async copyBudgetFromPreviousMonth(entidadeId, mesAtual, anoAtual) {
+    const mesAnterior = mesAtual === 1 ? 12 : mesAtual - 1;
+    const anoAnterior = mesAtual === 1 ? anoAtual - 1 : anoAtual;
+
+    const orcamentoAnterior = await this.getOrCreateOrcamento(entidadeId, mesAnterior, anoAnterior);
+    const limitesAnteriores = await this.getLimitesPorCategoria(orcamentoAnterior.id);
+    
+    if (limitesAnteriores.length === 0) return 0;
+
+    const orcamentoAtual = await this.getOrCreateOrcamento(entidadeId, mesAtual, anoAtual);
+    const limitesAtuais = await this.getLimitesPorCategoria(orcamentoAtual.id);
+    
+    // Filtra apenas categorias que ainda não têm limite definido no mês atual (valor_limite === 0)
+    const categoriasParaCopiar = limitesAnteriores.filter(ant => ant.valor_limite > 0);
+    
+    let count = 0;
+    for (const cat of categoriasParaCopiar) {
+      // Verifica se já existe um limite não-zero no mês atual para esta categoria
+      const atual = limitesAtuais.find(a => a.categoria_id === cat.categoria_id);
+      if (!atual || atual.valor_limite === 0) {
+        await this.saveLimiteCategoria(orcamentoAtual.id, cat.categoria_id, cat.valor_limite);
+        count++;
+      }
+    }
+    
+    return count;
+  },
+
   _mapRowToOrcamento(columns, values) {
     const obj = {};
     columns.forEach((col, i) => obj[col] = values[i]);

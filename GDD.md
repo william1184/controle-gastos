@@ -29,6 +29,8 @@ Um gerenciador financeiro local-first, com sincronização em nuvem e inteligên
 - [x] Sincronização com Google Drive.
 - [x] Integração com Gemini para categorização.
 - [x] Suporte a múltiplas entidades e usuários.
+- [x] Documentação do Usuário e Central de Ajuda Integrada.
+
 
 ### 6. Roadmap de Design
 - [ ] Implementação de Gráficos e Analytics Avançados.

@@ -10,8 +10,10 @@ export default function OrcamentoPage() {
   const [ano, setAno] = useState(new Date().getFullYear());
   const [resumo, setResumo] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [copyLoading, setCopyLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [tempValue, setTempValue] = useState("");
+  const [changedIds, setChangedIds] = useState(new Set());
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -29,7 +31,7 @@ export default function OrcamentoPage() {
 
   const handleSaveLimite = async (categoriaId, valor) => {
     if (!resumo) return;
-    const cleanValor = parseFloat(valor.replace(',', '.')) || 0;
+    const cleanValor = parseFloat(valor.toString().replace(',', '.')) || 0;
     await orcamentoDb.saveLimiteCategoria(resumo.orcamentoId, categoriaId, cleanValor);
     setEditingId(null);
     loadData();
@@ -37,12 +39,12 @@ export default function OrcamentoPage() {
 
   const handleAiSuggestions = async () => {
     setAiLoading(true);
+    setChangedIds(new Set());
     try {
       const ent = await getActiveEntidade();
       const ai = new GenerativeLanguageApi();
 
-      // Busca histórico das categorias para passar para a IA
-      const historicoPromessas = resumo.categorias.map(async (cat) => {
+      const historicoPromessas = resumo.categoriasSaida.concat(resumo.categoriasEntrada).map(async (cat) => {
         const hist = await orcamentoDb.getHistoricoSaidas(ent.id, cat.categoria_id, 3);
         const media = hist.length > 0 ? hist.reduce((acc, h) => acc + h.total, 0) / hist.length : 0;
         return {
@@ -56,18 +58,39 @@ export default function OrcamentoPage() {
       const historicoCompletos = await Promise.all(historicoPromessas);
       const sugestoes = await ai.suggestBudgetLimits(historicoCompletos);
 
-      // Salva as sugestões
+      const newChangedIds = new Set();
       for (const [catId, valor] of Object.entries(sugestoes)) {
         await orcamentoDb.saveLimiteCategoria(resumo.orcamentoId, parseInt(catId), valor);
+        newChangedIds.add(parseInt(catId));
       }
 
+      setChangedIds(newChangedIds);
       loadData();
-      alert("Sugestões da IA aplicadas com sucesso!");
+      // Limpa os destaques após 5 segundos
+      setTimeout(() => setChangedIds(new Set()), 5000);
     } catch (error) {
       console.error("Erro na IA:", error);
       alert("Não foi possível obter sugestões no momento.");
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleCopyFromPrevious = async () => {
+    setCopyLoading(true);
+    try {
+      const ent = await getActiveEntidade();
+      const count = await orcamentoDb.copyBudgetFromPreviousMonth(ent.id, mes, ano);
+      if (count > 0) {
+        await loadData();
+        alert(`${count} metas copiadas do mês anterior!`);
+      } else {
+        alert("Nenhuma meta encontrada no mês anterior ou todas já estão preenchidas.");
+      }
+    } catch (error) {
+      alert("Erro ao copiar metas: " + error.message);
+    } finally {
+      setCopyLoading(false);
     }
   };
 
@@ -89,7 +112,7 @@ export default function OrcamentoPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Orçamento</h1>
-          <p className="text-gray-500 font-medium">Planeje seus saidas e acompanhe sua evolução.</p>
+          <p className="text-gray-500 font-medium">Planeje suas saídas e acompanhe sua evolução.</p>
         </div>
 
         <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-gray-200 shadow-sm">
@@ -147,7 +170,16 @@ export default function OrcamentoPage() {
       </div>
 
       {/* Ações */}
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-4">
+        <button
+          onClick={handleCopyFromPrevious}
+          disabled={copyLoading}
+          className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-2xl font-bold border border-gray-200 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+        >
+          {copyLoading ? <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div> : <span>📋</span>}
+          <span>Copiar do Mês Anterior</span>
+        </button>
+
         <button
           onClick={handleAiSuggestions}
           disabled={aiLoading}
@@ -175,7 +207,18 @@ export default function OrcamentoPage() {
         </div>
         <div className="divide-y divide-gray-100">
           {resumo?.categoriasEntrada.map((cat) => (
-            <BudgetRow key={cat.categoria_id} cat={cat} formatCurrency={formatCurrency} editingId={editingId} setEditingId={setEditingId} tempValue={tempValue} setTempValue={setTempValue} handleSaveLimite={handleSaveLimite} isIncome={true} />
+            <BudgetRow 
+              key={cat.categoria_id} 
+              cat={cat} 
+              formatCurrency={formatCurrency} 
+              editingId={editingId} 
+              setEditingId={setEditingId} 
+              tempValue={tempValue} 
+              setTempValue={setTempValue} 
+              handleSaveLimite={handleSaveLimite} 
+              isIncome={true}
+              isChanged={changedIds.has(cat.categoria_id)}
+            />
           ))}
         </div>
       </div>
@@ -188,7 +231,18 @@ export default function OrcamentoPage() {
         </div>
         <div className="divide-y divide-gray-100">
           {resumo?.categoriasSaida.map((cat) => (
-            <BudgetRow key={cat.categoria_id} cat={cat} formatCurrency={formatCurrency} editingId={editingId} setEditingId={setEditingId} tempValue={tempValue} setTempValue={setTempValue} handleSaveLimite={handleSaveLimite} isIncome={false} />
+            <BudgetRow 
+              key={cat.categoria_id} 
+              cat={cat} 
+              formatCurrency={formatCurrency} 
+              editingId={editingId} 
+              setEditingId={setEditingId} 
+              tempValue={tempValue} 
+              setTempValue={setTempValue} 
+              handleSaveLimite={handleSaveLimite} 
+              isIncome={false}
+              isChanged={changedIds.has(cat.categoria_id)}
+            />
           ))}
         </div>
       </div>
@@ -196,9 +250,9 @@ export default function OrcamentoPage() {
   );
 }
 
-function BudgetRow({ cat, formatCurrency, editingId, setEditingId, tempValue, setTempValue, handleSaveLimite, isIncome }) {
+function BudgetRow({ cat, formatCurrency, editingId, setEditingId, tempValue, setTempValue, handleSaveLimite, isIncome, isChanged }) {
   return (
-    <div className="p-6 hover:bg-gray-50/50 transition-colors">
+    <div className={`p-6 transition-all duration-500 ${isChanged ? 'bg-yellow-50 animate-pulse' : 'hover:bg-gray-50/50'}`}>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${isIncome ? 'bg-green-100' : 'bg-red-100'}`}>
@@ -222,23 +276,29 @@ function BudgetRow({ cat, formatCurrency, editingId, setEditingId, tempValue, se
                   type="text"
                   value={tempValue}
                   onChange={(e) => setTempValue(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveLimite(cat.categoria_id, tempValue)}
-                  onBlur={() => setEditingId(null)}
-                  className="w-24 px-2 py-1 border border-blue-400 rounded-lg text-sm font-bold text-right focus:ring-2 focus:ring-blue-100 outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveLimite(cat.categoria_id, tempValue);
+                    if (e.key === 'Escape') setEditingId(null);
+                  }}
+                  onBlur={() => handleSaveLimite(cat.categoria_id, tempValue)}
+                  className="w-32 px-3 py-1.5 border-2 border-blue-600 rounded-xl text-sm font-bold text-right outline-none shadow-sm"
                 />
-                <button onClick={() => handleSaveLimite(cat.categoria_id, tempValue)} className="text-green-500 hover:text-green-600">✓</button>
               </div>
             ) : (
-              <button
+              <div 
                 onClick={() => {
                   setEditingId(cat.categoria_id);
                   setTempValue(cat.valor_limite.toString());
                 }}
-                className="font-black text-gray-900 hover:text-blue-600 transition-colors cursor-pointer group"
+                className="flex items-center gap-2 cursor-pointer group"
               >
-                {formatCurrency(cat.valor_limite)}
-                <span className="ml-1 opacity-0 group-hover:opacity-100 text-xs">✎</span>
-              </button>
+                <p className="font-black text-gray-900 group-hover:text-blue-600 transition-colors">
+                  {formatCurrency(cat.valor_limite)}
+                </p>
+                <div className="p-1.5 bg-gray-100 group-hover:bg-blue-100 text-gray-400 group-hover:text-blue-600 rounded-lg transition-all">
+                  <span className="text-xs">✎</span>
+                </div>
+              </div>
             )}
           </div>
 

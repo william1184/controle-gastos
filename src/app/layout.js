@@ -24,7 +24,7 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuOpen, handleSwitchUser }) {
+function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuOpen, handleSwitchUser, pathname }) {
   const { runTask, isTaskRunning } = useBackgroundTask();
   
   const handleSync = async () => {
@@ -41,10 +41,29 @@ function HeaderContent({ activeUsuario, usuarios, isUserMenuOpen, setIsUserMenuO
     <header className="bg-white border-b border-gray-200 h-16 flex items-center px-8 sticky top-0 z-30">
       <div className="flex justify-between items-center w-full">
         <div className="flex items-center gap-4">
-           {/* Aqui pode ir o título da página atual ou algo do tipo */}
+           <h2 className="text-lg font-bold text-gray-800 capitalize">
+             {pathname.split('/').filter(x => x).pop() || 'Início'}
+           </h2>
         </div>
         
         <div className="flex gap-4 items-center">
+          <Link
+            href={`/ajuda?tab=${
+              pathname.includes('transacoes') || pathname.includes('itens') || pathname.includes('categorias') || pathname.includes('contas') || pathname.includes('recorrencias') || pathname.includes('tags')
+                ? 'transacoes'
+                : pathname.includes('orcamento')
+                  ? 'orcamento'
+                  : pathname.includes('configuracoes')
+                    ? 'seguranca'
+                    : 'inicio'
+            }`}
+            className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all shadow-sm border border-blue-100 flex items-center gap-2 px-3"
+            title="Ajuda desta página"
+          >
+            <span className="text-sm font-bold">Ajuda</span>
+            <span className="text-lg">❓</span>
+          </Link>
+
           <button
             onClick={handleSync}
             disabled={isTaskRunning('google-drive-sync')}
@@ -193,6 +212,7 @@ export default function RootLayout({ children }) {
                   isUserMenuOpen={isUserMenuOpen}
                   setIsUserMenuOpen={setIsUserMenuOpen}
                   handleSwitchUser={handleSwitchUser}
+                  pathname={pathname}
                 />
               )}
               
